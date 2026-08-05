@@ -1,0 +1,622 @@
+:root {
+  --bg: #14161a;
+  --surface: #1c1f26;
+  --surface-raised: #242832;
+  --border: #2f3542;
+  --text: #e6e9ef;
+  --text-dim: #9aa3b2;
+  --accent: #4a8cff;
+  --danger: #e0574f;
+  --ok: #46b678;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+#root {
+  height: 100vh;
+}
+
+/* --- common elements --- */
+
+.button {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.button--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.button--danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.select {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+}
+
+/* The language switch only holds "EN"/"RU", so it needs no room to grow. */
+.select--lang {
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.field span {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.field input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.field input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.hint {
+  margin: -4px 0 12px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.alert {
+  margin: 8px 16px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.alert--error {
+  border-color: var(--danger);
+  color: #ffb3ae;
+}
+
+.alert--notice {
+  border-color: var(--accent);
+}
+
+/* --- server list --- */
+
+.servers {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.servers__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.servers__header h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.servers__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.servers__empty {
+  color: var(--text-dim);
+}
+
+.servers__list {
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.server-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.server-card__info {
+  display: flex;
+  flex-direction: column;
+}
+
+.server-card__name {
+  font-weight: 600;
+}
+
+.server-card__host {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.server-card__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.form {
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.form h2 {
+  margin: 0 0 16px;
+  font-size: 16px;
+}
+
+/* --- session --- */
+
+.session {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-wrap: wrap;
+}
+
+.toolbar__group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar__title {
+  font-weight: 600;
+}
+
+.badge {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.badge--on {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.badge--off {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.leds {
+  display: flex;
+  gap: 4px;
+}
+
+.led {
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.led--on {
+  border-color: var(--ok);
+  background: rgba(70, 182, 120, 0.15);
+  color: var(--ok);
+}
+
+.dropdown {
+  position: relative;
+}
+
+.dropdown__menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 10;
+  min-width: 240px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.dropdown__item {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dropdown__item:hover {
+  background: rgba(74, 140, 255, 0.15);
+}
+
+.dropdown__item--danger {
+  color: #ffb3ae;
+}
+
+.dropdown__item--danger:hover {
+  background: rgba(224, 87, 79, 0.2);
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.tab {
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tab--active {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.button--active {
+  border-color: var(--accent);
+  background: rgba(74, 140, 255, 0.18);
+}
+
+/* --- on-screen keyboard --- */
+
+.vkbd {
+  /*
+    Key width. The layout spans 22 units (15 for the main block, 3 for
+    navigation, 4 for the numeric pad) plus the gaps, so the unit follows the
+    window width: on a narrow screen the keyboard shrinks instead of clipping.
+  */
+  --vkbd-u: clamp(22px, calc((100vw - 48px) / 23), 40px);
+
+  flex: none;
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  user-select: none;
+}
+
+.vkbd__body {
+  display: flex;
+  justify-content: center;
+  gap: calc(var(--vkbd-u) * 0.4);
+}
+
+.vkbd__block {
+  display: flex;
+  flex-direction: column;
+}
+
+.vkbd__row {
+  display: flex;
+  height: var(--vkbd-u);
+}
+
+/* The slot sets the row geometry; the gap between keys is its padding. */
+.vkbd__slot {
+  padding: 2px;
+}
+
+.vkey {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+  font-size: clamp(9px, calc(var(--vkbd-u) * 0.34), 13px);
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+/* A long label on a key of ordinary width. */
+.vkey--tight {
+  font-size: clamp(8px, calc(var(--vkbd-u) * 0.26), 10px);
+}
+
+.vkey:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.vkey:active:not(:disabled) {
+  background: rgba(74, 140, 255, 0.3);
+}
+
+.vkey:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* A modifier armed for one key. */
+.vkey--once {
+  border-color: var(--accent);
+  background: rgba(74, 140, 255, 0.22);
+}
+
+/* A modifier held until it is clicked again. */
+.vkey--lock {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+/* The Num/Caps/Scroll indicator, as reported by the BMC. */
+.vkey--led {
+  box-shadow: inset 0 -3px 0 var(--ok);
+}
+
+.vkbd__footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.vkbd__label {
+  margin-right: 4px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.vkey--combo {
+  width: auto;
+  height: auto;
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.vkbd__hint {
+  flex: 1;
+  min-width: 220px;
+  margin-left: 8px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+/* --- sensor panel --- */
+
+.session__pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.session__pane--scroll {
+  overflow-y: auto;
+}
+
+.session__pane[hidden] {
+  display: none;
+}
+
+.sensors {
+  padding: 16px 20px;
+}
+
+.sensors__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.sensors__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.sensors__groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.sensor-group {
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.sensor-group h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.sensor-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.sensor-table td {
+  padding: 3px 0;
+  vertical-align: top;
+}
+
+.sensor-table__name {
+  color: var(--text-dim);
+}
+
+.sensor-table__value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding-left: 12px;
+}
+
+.sensor-table__state {
+  padding-left: 12px;
+  color: var(--danger);
+  font-size: 12px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.sensors__fault {
+  padding: 1px 8px;
+  border: 1px solid var(--danger);
+  border-radius: 999px;
+  color: var(--danger);
+}
+
+.sensor--alarm .sensor-table__value {
+  color: var(--danger);
+}
+
+/* --- console --- */
+
+.console {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  background: #000;
+  overflow: hidden;
+}
+
+.console__canvas {
+  /* Fill the available area while keeping the server screen's aspect ratio. */
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* The pixel graphics of a BIOS must not blur when scaled. */
+  image-rendering: pixelated;
+  cursor: crosshair;
+}
+
+.console__placeholder {
+  position: absolute;
+  color: var(--text-dim);
+}
+
+/* --- modal windows --- */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.modal__body {
+  width: min(420px, calc(100vw - 48px));
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.modal__body h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}

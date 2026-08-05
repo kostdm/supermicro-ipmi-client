@@ -1,0 +1,70 @@
+{
+  "name": "supermicro-ipmi-client",
+  "version": "0.1.0",
+  "description": "Remote management client for Supermicro servers with AMI MegaRAC BMC firmware — a replacement for the JViewer Java applet",
+  "main": "out/main/index.js",
+  "license": "MIT",
+  "author": "Konstantin Dmitrienko <kostdm@gmail.com>",
+  "homepage": "https://github.com/kostdm/supermicro-ipmi-client#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kostdm/supermicro-ipmi-client.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kostdm/supermicro-ipmi-client/issues"
+  },
+  "keywords": [
+    "ipmi",
+    "kvm",
+    "bmc",
+    "supermicro",
+    "megarac",
+    "jviewer",
+    "ikvm",
+    "remote-console",
+    "electron"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "private": true,
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "npm run typecheck && electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check:auth": "tsx --tsconfig tsconfig.node.json scripts/check-auth.ts",
+    "check:kvm": "tsx --tsconfig tsconfig.node.json scripts/check-kvm.ts",
+    "check:ipmi": "tsx --tsconfig tsconfig.node.json scripts/check-ipmi.ts",
+    "check:vmedia": "tsx --tsconfig tsconfig.node.json scripts/check-vmedia.ts",
+    "check:hotkey": "tsx --tsconfig tsconfig.node.json scripts/check-hotkey.ts",
+    "probe:vmedia": "tsx --tsconfig tsconfig.node.json scripts/probe-vmedia.ts",
+    "dump:services": "tsx --tsconfig tsconfig.node.json scripts/dump-services.ts",
+    "decode:frame": "tsx --tsconfig tsconfig.node.json scripts/decode-frame.ts",
+    "e2e": "tsx --tsconfig tsconfig.node.json scripts/e2e-console.ts",
+    "make:icon": "tsx --tsconfig tsconfig.node.json scripts/make-icon.ts",
+    "dist": "npm run make:icon && npm run build && electron-builder --mac --win --linux",
+    "dist:mac": "npm run make:icon && npm run build && electron-builder --mac",
+    "dist:win": "npm run make:icon && npm run build && electron-builder --win",
+    "dist:linux": "npm run make:icon && npm run build && electron-builder --linux"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "electron": "^43.3.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "playwright-core": "^1.62.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "tsx": "^4.23.7",
+    "typescript": "^5.9.0",
+    "vite": "^7.1.0",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^4.0.0"
+  }
+}

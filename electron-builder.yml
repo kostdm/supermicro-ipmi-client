@@ -1,0 +1,75 @@
+appId: io.github.kostdm.supermicro-ipmi-client
+productName: Supermicro IPMI Client
+copyright: Copyright © 2026 Konstantin Dmitrienko
+
+directories:
+  output: release
+  buildResources: build
+
+# Artifacts are not uploaded anywhere: without this, electron-builder sees
+# github in homepage and tries to configure auto-publishing.
+publish: null
+
+# Only compiled code goes into the package: sources, tests and debug scripts
+# are not needed in a distribution.
+files:
+  - out/**/*
+  - package.json
+
+# The project has no native modules, so there is nothing to rebuild.
+npmRebuild: false
+
+mac:
+  category: public.app-category.utilities
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  # The app only opens outgoing connections; access to the microphone and
+  # similar devices is not needed.
+  extendInfo:
+    NSHumanReadableCopyright: Copyright © 2026 Konstantin Dmitrienko
+  # Unsigned: this is not an App Store build, users run it locally.
+  identity: null
+
+dmg:
+  title: ${productName}
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Supermicro IPMI Client
+
+linux:
+  category: Utility
+  # Required by the deb packager.
+  maintainer: Konstantin Dmitrienko <kostdm@gmail.com>
+  synopsis: Remote management client for Supermicro servers
+  description: >-
+    KVM console, power control, IPMI sensors and virtual media for Supermicro
+    servers running AMI MegaRAC BMC firmware.
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+    - target: tar.gz
+      arch: [x64]

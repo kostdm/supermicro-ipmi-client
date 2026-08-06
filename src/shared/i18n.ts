@@ -49,6 +49,29 @@ const EN: Record<string, string> = {
   'common.retry': 'Retry',
   'common.execute': 'Proceed',
   'common.language': 'Language',
+  'common.yes': 'Yes',
+  'common.no': 'No',
+
+  'advanced.title': 'Advanced settings',
+  'advanced.changed': 'changed',
+  'advanced.reset': 'Reset to defaults',
+  'advanced.hint':
+    'Timings and ports for this server. They describe the far end, so they are stored per profile; leave them alone unless the link or the firmware asks for something else.',
+  'advanced.httpTimeoutMs': 'Web interface timeout, ms',
+  'advanced.insecureTls': 'Accept a self-signed certificate',
+  'advanced.bandwidthBytesPerSecond': 'KVM bandwidth',
+  'advanced.bandwidth.100': '100 Mbit/s',
+  'advanced.bandwidth.10': '10 Mbit/s',
+  'advanced.bandwidth.1': '1 Mbit/s',
+  'advanced.mouseThrottleMs': 'Mouse send interval, ms',
+  'advanced.blankRetryMs': 'Retry interval with no video, ms',
+  'advanced.keyRepeatDelayMs': 'On-screen key repeat delay, ms',
+  'advanced.keyRepeatIntervalMs': 'On-screen key repeat period, ms',
+  'advanced.ipmiPort': 'IPMI over LAN port',
+  'advanced.ipmiTimeoutMs': 'IPMI reply timeout, ms',
+  'advanced.ipmiRetries': 'IPMI retries',
+  'advanced.sensorRefreshMs': 'Sensor refresh interval, ms',
+  'advanced.cdPort': 'CD redirection port',
 
   'servers.title': 'Servers',
   'servers.add': 'Add server',
@@ -72,6 +95,21 @@ const EN: Record<string, string> = {
   'servers.passwordFor': 'Password for {name}',
   'servers.passwordForUser': 'Password for user {user}',
 
+  'scan.toggle': 'Find on network',
+  'scan.from': 'From address',
+  'scan.to': 'To address',
+  'scan.start': 'Scan',
+  'scan.stop': 'Stop',
+  'scan.hint':
+    'Every address in the range is asked for its IPMI capabilities over UDP 623. No credentials are needed, and only a BMC answers.',
+  'scan.progress': 'scanned {percent}%',
+  'scan.add': 'Add',
+  'scan.added': 'Already added',
+  'scan.none': 'Nothing answered in this range.',
+  'scan.badRange': 'Enter both addresses in IPv4 form, for example 10.0.0.1.',
+  'scan.reversedRange': 'The end of the range is below its start.',
+  'scan.rangeTooWide': 'A range of more than {max} addresses is too wide for one scan.',
+
   'toolbar.disconnect': '← Disconnect',
   'toolbar.ctrlAltDel': 'Ctrl+Alt+Del',
   'toolbar.keyboard': '⌨ Keyboard',
@@ -86,6 +124,9 @@ const EN: Record<string, string> = {
 
   'tabs.console': 'Console',
   'tabs.sensors': 'Sensors',
+
+  'video.present': 'The server is producing a video signal',
+  'video.absent': 'No video signal — retrying once a second',
 
   'badge.powerUnknown': 'power: —',
   'badge.powerOn': 'power: on',
@@ -107,7 +148,6 @@ const EN: Record<string, string> = {
 
   'notice.powerOk': 'Power command executed',
   'notice.powerRejected': 'The BMC rejected the power command (code {code})',
-  'notice.noVideo': 'The server is not producing a video signal',
   'notice.mediaEjected': 'The server ejected the virtual disk',
   'notice.isoMounted': 'Image mounted. Reboot the server for the system to see it.',
   'notice.isoMountFailed': 'Could not mount the image: {error}',
@@ -245,6 +285,29 @@ const RU: Record<string, string> = {
   'common.retry': 'Повторить',
   'common.execute': 'Выполнить',
   'common.language': 'Язык',
+  'common.yes': 'Да',
+  'common.no': 'Нет',
+
+  'advanced.title': 'Расширенные настройки',
+  'advanced.changed': 'изменены',
+  'advanced.reset': 'Сбросить по умолчанию',
+  'advanced.hint':
+    'Тайминги и порты этого сервера. Они описывают удалённую сторону, поэтому хранятся в профиле; меняйте их, только если этого требует канал или прошивка.',
+  'advanced.httpTimeoutMs': 'Таймаут веб-интерфейса, мс',
+  'advanced.insecureTls': 'Принимать самоподписанный сертификат',
+  'advanced.bandwidthBytesPerSecond': 'Пропускная способность KVM',
+  'advanced.bandwidth.100': '100 Мбит/с',
+  'advanced.bandwidth.10': '10 Мбит/с',
+  'advanced.bandwidth.1': '1 Мбит/с',
+  'advanced.mouseThrottleMs': 'Интервал отправки мыши, мс',
+  'advanced.blankRetryMs': 'Интервал переопроса без видео, мс',
+  'advanced.keyRepeatDelayMs': 'Задержка автоповтора экранных клавиш, мс',
+  'advanced.keyRepeatIntervalMs': 'Период автоповтора экранных клавиш, мс',
+  'advanced.ipmiPort': 'Порт IPMI over LAN',
+  'advanced.ipmiTimeoutMs': 'Таймаут ответа IPMI, мс',
+  'advanced.ipmiRetries': 'Повторы запросов IPMI',
+  'advanced.sensorRefreshMs': 'Период обновления датчиков, мс',
+  'advanced.cdPort': 'Порт CD-редиректа',
 
   'servers.title': 'Серверы',
   'servers.add': 'Добавить сервер',
@@ -268,6 +331,21 @@ const RU: Record<string, string> = {
   'servers.passwordFor': 'Пароль для {name}',
   'servers.passwordForUser': 'Пароль пользователя {user}',
 
+  'scan.toggle': 'Найти в сети',
+  'scan.from': 'Адрес от',
+  'scan.to': 'Адрес до',
+  'scan.start': 'Сканировать',
+  'scan.stop': 'Остановить',
+  'scan.hint':
+    'У каждого адреса диапазона по UDP 623 запрашиваются возможности IPMI. Учётные данные не нужны, отвечает только BMC.',
+  'scan.progress': 'просканировано {percent}%',
+  'scan.add': 'Добавить',
+  'scan.added': 'Уже добавлен',
+  'scan.none': 'В этом диапазоне никто не ответил.',
+  'scan.badRange': 'Укажите оба адреса в формате IPv4, например 10.0.0.1.',
+  'scan.reversedRange': 'Конец диапазона меньше начала.',
+  'scan.rangeTooWide': 'Диапазон больше {max} адресов слишком широк для одного сканирования.',
+
   'toolbar.disconnect': '← Отключиться',
   'toolbar.ctrlAltDel': 'Ctrl+Alt+Del',
   'toolbar.keyboard': '⌨ Клавиатура',
@@ -282,6 +360,9 @@ const RU: Record<string, string> = {
 
   'tabs.console': 'Консоль',
   'tabs.sensors': 'Датчики',
+
+  'video.present': 'Сервер выдаёт видеосигнал',
+  'video.absent': 'Видеосигнала нет — запрашиваем раз в секунду',
 
   'badge.powerUnknown': 'питание: —',
   'badge.powerOn': 'питание: вкл',
@@ -303,7 +384,6 @@ const RU: Record<string, string> = {
 
   'notice.powerOk': 'Команда питания выполнена',
   'notice.powerRejected': 'BMC отклонил команду питания (код {code})',
-  'notice.noVideo': 'Сервер не выдаёт видеосигнал',
   'notice.mediaEjected': 'Сервер извлёк виртуальный диск',
   'notice.isoMounted': 'Образ подключён. Чтобы система его увидела, перезагрузите сервер.',
   'notice.isoMountFailed': 'Не удалось подключить образ: {error}',
@@ -436,6 +516,11 @@ const RU: Record<string, string> = {
 };
 
 const DICTIONARIES: Record<Locale, Record<string, string>> = { en: EN, ru: RU };
+
+/** The keys a language defines. English is the reference set. */
+export function translationKeys(locale: Locale): string[] {
+  return Object.keys(DICTIONARIES[locale]);
+}
 
 /**
  * Looks a key up, falling back to English and then to the key itself — an

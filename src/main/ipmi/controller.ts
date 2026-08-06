@@ -1,4 +1,5 @@
 import type { IpmiSnapshot } from '@shared/types';
+import { DEFAULT_ADVANCED, type AdvancedSettings } from '@shared/settings';
 import { IpmiSession } from './session';
 import { getChassisStatus, getDeviceId, getSelInfo, readSel, readSensors } from './commands';
 
@@ -16,6 +17,7 @@ export class IpmiController {
     private readonly host: string,
     private readonly username: string,
     private readonly password: string,
+    private readonly settings: AdvancedSettings = DEFAULT_ADVANCED,
   ) {}
 
   private async ensureSession(): Promise<IpmiSession> {
@@ -28,6 +30,9 @@ export class IpmiController {
         host: this.host,
         username: this.username,
         password: this.password,
+        port: this.settings.ipmiPort,
+        timeoutMs: this.settings.ipmiTimeoutMs,
+        retries: this.settings.ipmiRetries,
       });
       await session.connect();
       this.session = session;

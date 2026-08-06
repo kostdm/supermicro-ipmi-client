@@ -11,6 +11,22 @@ things have to be done.
 
 ## [Unreleased]
 
+### Added
+
+- Advanced settings per server: the timeouts, ports, KVM bandwidth and input
+  timings that used to be constants, folded into the server form with a reset
+  to defaults. A profile stores only what differs from the defaults.
+- Network discovery on the start screen: an address range is swept over
+  UDP 623, and whatever answers can be added to the server list. The range is
+  prefilled from this machine's own interface.
+
+### Changed
+
+- A missing video signal is shown as a monitor indicator in the toolbar —
+  green with video, red and struck through without — instead of a notice that
+  fades away. While the screen is blank a full frame is requested once a
+  second, so the picture returns on its own.
+
 ## [0.1.0] — 2026-08-05
 
 First public release.

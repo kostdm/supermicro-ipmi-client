@@ -24,7 +24,13 @@ dependencies at all.
   state, the system event log.
 - **Virtual media** — mounting an ISO as a virtual USB CD-ROM (see
   [Limitations](#limitations)).
+- **Network discovery** — sweeps an address range for BMCs over UDP 623 and
+  offers what answered for adding to the list. The range is prefilled from this
+  machine's own network.
 - A server list with passwords held in the OS keychain.
+- **Advanced settings per server** — timeouts, ports, KVM bandwidth and input
+  timings, kept in the profile because they describe the far end rather than
+  this machine. Every one of them has a default, and the form resets to them.
 - English and Russian interface, following the system language by default.
 
 ## Requirements

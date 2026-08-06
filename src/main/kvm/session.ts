@@ -44,6 +44,8 @@ export interface KvmSessionOptions {
    * Set it to false when the BMC certificate is issued by your own CA.
    */
   insecureTls?: boolean;
+  /** SET_BANDWIDTH value sent once the session is authenticated. */
+  bandwidthBytesPerSecond?: number;
 }
 
 /** BMC service details from the CONF_SERVICE_STATUS packet. */
@@ -239,7 +241,9 @@ export class KvmSession extends EventEmitter<KvmSessionEvents> {
           this.emit('authenticated');
           // The original client immediately asks for power and sets bandwidth.
           this.requestPowerStatus();
-          this.send(buildBandwidthPacket(Bandwidth.MBPS_100));
+          this.send(
+            buildBandwidthPacket(this.options.bandwidthBytesPerSecond ?? Bandwidth.MBPS_100),
+          );
         } else {
           this.emit('error', new AppError('kvm.tokenRejected'));
           this.close(msg('kvm.authFailed'));

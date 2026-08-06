@@ -1,14 +1,12 @@
 import type { BrowserWindow } from 'electron';
 import type { KeyEventPayload, MouseMode, PowerCommand } from '@shared/types';
+import { DEFAULT_ADVANCED, type AdvancedSettings } from '@shared/settings';
 import { IpcChannel, type ConnectRequest, type KvmEvent } from '@shared/ipc';
 import { msg } from '@shared/i18n';
 import { connect as bmcConnect, logout, type BmcSession } from '../bmc/auth';
 import { KvmSession, type ServiceInfo } from './session';
 import { KeyboardState, MouseState } from './hid';
 import { Pkt, buildControl } from './ivtp';
-
-/** The usual CD redirection port, when the BMC reports nothing else. */
-const DEFAULT_CD_PORT = 5120;
 
 function isUsablePort(port: number | undefined): boolean {
   return port !== undefined && port > 0 && port < 65536;
@@ -27,6 +25,11 @@ export class KvmController {
   private mouse = new MouseState();
   private credentials: import('@shared/types').KvmCredentials | null = null;
   private services: ServiceInfo[] = [];
+  /** false until the first frame of a session arrives. */
+  private videoPresent = false;
+  private blankRetry: NodeJS.Timeout | null = null;
+  /** Timings and ports of the profile being connected to. */
+  private settings: AdvancedSettings = DEFAULT_ADVANCED;
 
   constructor(private readonly window: BrowserWindow) {}
 
@@ -51,7 +54,7 @@ export class KvmController {
       ? fromServices!.port
       : isUsablePort(jnlpPort)
         ? jnlpPort
-        : DEFAULT_CD_PORT;
+        : this.settings.cdPort;
 
     return { host: this.credentials.host, cdPort, token: this.credentials.kvmToken };
   }
@@ -79,18 +82,26 @@ export class KvmController {
   async connect(request: ConnectRequest): Promise<void> {
     await this.disconnect();
 
+    this.settings = request.advanced;
     this.emit({ type: 'status', status: { kind: 'connecting' } });
 
     const { session: web, credentials } = await bmcConnect(
       request.host,
       request.username,
       request.password,
-      { port: request.port },
+      {
+        port: request.port,
+        insecureTls: this.settings.insecureTls,
+        timeoutMs: this.settings.httpTimeoutMs,
+      },
     );
     this.webSession = web;
     this.credentials = credentials;
 
-    const kvm = new KvmSession(credentials);
+    const kvm = new KvmSession(credentials, {
+      insecureTls: this.settings.insecureTls,
+      bandwidthBytesPerSecond: this.settings.bandwidthBytesPerSecond,
+    });
     this.session = kvm;
     this.keyboard = new KeyboardState();
     this.mouse = new MouseState();
@@ -101,8 +112,12 @@ export class KvmController {
     kvm.on('authenticated', () => {
       this.emit({ type: 'status', status: { kind: 'connected' } });
     });
-    kvm.on('frame', (frame) => this.sendFrame(frame));
-    kvm.on('blankScreen', () => this.emit({ type: 'blankScreen' }));
+    kvm.on('frame', (frame) => {
+      // A frame is the only proof that the signal is back.
+      this.setVideoSignal(true);
+      this.sendFrame(frame);
+    });
+    kvm.on('blankScreen', () => this.setVideoSignal(false));
     kvm.on('mouseMode', (mode) => this.emit({ type: 'mouseMode', mode }));
     kvm.on('powerStatus', (on) => this.emit({ type: 'powerStatus', on }));
     kvm.on('powerResponse', (r) => this.emit({ type: 'powerResponse', ...r }));
@@ -134,6 +149,32 @@ export class KvmController {
 
   refreshScreen(): void {
     this.session?.requestFullScreen();
+  }
+
+  /**
+   * Tracks whether the server is producing video and drives the retry loop.
+   *
+   * Only changes are reported: the BMC repeats BLANK_SCREEN, and the renderer
+   * would otherwise re-render the indicator on every packet.
+   */
+  private setVideoSignal(present: boolean): void {
+    if (present) this.stopBlankRetry();
+    if (this.videoPresent === present) return;
+
+    this.videoPresent = present;
+    this.emit({ type: 'videoSignal', present });
+
+    if (!present) {
+      this.blankRetry = setInterval(() => {
+        this.session?.requestFullScreen();
+      }, this.settings.blankRetryMs);
+    }
+  }
+
+  private stopBlankRetry(): void {
+    if (!this.blankRetry) return;
+    clearInterval(this.blankRetry);
+    this.blankRetry = null;
   }
 
   setMouseMode(mode: MouseMode): void {
@@ -206,6 +247,8 @@ export class KvmController {
   }
 
   private async cleanup(): Promise<void> {
+    this.stopBlankRetry();
+    this.videoPresent = false;
     this.session?.removeAllListeners();
     this.session = null;
     this.credentials = null;

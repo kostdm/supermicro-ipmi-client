@@ -9,6 +9,8 @@ interface Props {
   mouseMode: MouseMode;
   keyboardLeds: number;
   activeClients: string[];
+  /** Whether the server is currently producing video. */
+  videoSignal: boolean;
   tab: 'console' | 'sensors';
   virtualMedia: VirtualMediaState;
   keysVisible: boolean;
@@ -41,12 +43,37 @@ const LED_LABELS: Array<[number, string]> = [
 
 const LOCALE_NAMES: Record<Locale, string> = { en: 'EN', ru: 'RU' };
 
+/**
+ * The video signal indicator: a monitor, struck through when the server is
+ * producing nothing. The colour comes from the wrapper through currentColor.
+ */
+function MonitorIcon({ crossed }: { crossed: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="2.5" y="4" width="19" height="13" rx="2" />
+      <path d="M12 17v3M9 20h6" />
+      {crossed && <line x1="4" y1="18.5" x2="20" y2="2.5" />}
+    </svg>
+  );
+}
+
 export function Toolbar({
   serverName,
   powerOn,
   mouseMode,
   keyboardLeds,
   activeClients,
+  videoSignal,
   tab,
   virtualMedia,
   keysVisible,
@@ -77,6 +104,13 @@ export function Toolbar({
           {t('toolbar.disconnect')}
         </button>
         <span className="toolbar__title">{serverName}</span>
+        <span
+          className={`video-signal ${videoSignal ? 'video-signal--on' : 'video-signal--off'}`}
+          title={t(videoSignal ? 'video.present' : 'video.absent')}
+          data-testid="video-signal"
+        >
+          <MonitorIcon crossed={!videoSignal} />
+        </span>
         <span className={`badge ${powerOn ? 'badge--on' : 'badge--off'}`}>
           {powerOn === null
             ? t('badge.powerUnknown')

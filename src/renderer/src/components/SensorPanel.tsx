@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import type { IpmiSensor, IpmiSnapshot } from '@shared/types';
 import { useI18n } from '../i18n';
 
-/** How often to refresh readings while the panel is open. */
-const REFRESH_INTERVAL_MS = 15_000;
+interface Props {
+  /** How often to refresh readings while the panel is open. */
+  refreshIntervalMs: number;
+}
 
 /**
  * Sensors are grouped by unit — the table reads much better that way.
@@ -43,7 +45,7 @@ function faultKeys(snapshot: IpmiSnapshot): string[] {
   return list;
 }
 
-export function SensorPanel() {
+export function SensorPanel({ refreshIntervalMs }: Props) {
   const { t, te, locale } = useI18n();
   const [snapshot, setSnapshot] = useState<IpmiSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,9 +65,9 @@ export function SensorPanel() {
 
   useEffect(() => {
     void refresh();
-    const timer = setInterval(() => void refresh(), REFRESH_INTERVAL_MS);
+    const timer = setInterval(() => void refresh(), refreshIntervalMs);
     return () => clearInterval(timer);
-  }, [refresh]);
+  }, [refresh, refreshIntervalMs]);
 
   if (error && !snapshot) {
     return (

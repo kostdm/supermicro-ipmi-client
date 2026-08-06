@@ -192,11 +192,120 @@ body {
   gap: 8px;
 }
 
+/* --- network scan --- */
+
+.scan {
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.scan__controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+/* Inside the scan panel the fields sit in a row rather than stacked. */
+.field--inline {
+  flex: 1;
+  margin-bottom: 12px;
+}
+
+.scan__progress {
+  position: relative;
+  height: 20px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.scan__bar {
+  height: 100%;
+  background: rgba(74, 140, 255, 0.35);
+  transition: width 120ms linear;
+}
+
+.scan__counter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.scan__results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scan__result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
 .form {
   padding: 20px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
+}
+
+/* --- advanced settings --- */
+
+.advanced {
+  margin: 4px 0 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.advanced__toggle {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.advanced__toggle:hover {
+  color: var(--text);
+}
+
+/* Two columns: a dozen numeric fields stacked would bury the save button. */
+.advanced__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+  margin-top: 12px;
+}
+
+.advanced__grid input,
+.advanced__grid .select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
 }
 
 .form h2 {
@@ -248,6 +357,20 @@ body {
 
 .badge--off {
   border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* The video signal indicator: green monitor, or a red one struck through. */
+.video-signal {
+  display: inline-flex;
+  align-items: center;
+}
+
+.video-signal--on {
+  color: var(--ok);
+}
+
+.video-signal--off {
   color: var(--danger);
 }
 

@@ -1,4 +1,5 @@
 import type { Message } from './i18n';
+import type { AdvancedSettings } from './settings';
 
 /** Types shared by main, preload and renderer. */
 
@@ -12,6 +13,8 @@ export interface ServerProfile {
   username: string;
   /** true — the password is kept in encrypted storage. */
   hasSavedPassword: boolean;
+  /** Only the settings that differ from the defaults; absent when none do. */
+  advanced?: Partial<AdvancedSettings>;
 }
 
 /** KVM session parameters taken from the JNLP after a web login. */
@@ -28,6 +31,23 @@ export interface KvmCredentials {
   fdPort: number;
   hdPort: number;
   userPrivileges: number;
+}
+
+/** An inclusive range of IPv4 addresses to sweep for BMCs. */
+export interface ScanRange {
+  from: string;
+  to: string;
+}
+
+/** A BMC that answered a discovery request. */
+export interface DiscoveredServer {
+  host: string;
+  /** The highest IPMI version the BMC reports support for. */
+  ipmiVersion: '1.5' | '2.0';
+  /** IANA enterprise number from the reply, 0 when none is reported. */
+  oemId: number;
+  /** Vendor name for a recognised OEM id, null otherwise. */
+  vendor: string | null;
 }
 
 export type MouseMode = 'relative' | 'absolute' | 'other';
@@ -65,7 +85,8 @@ export interface KvmEvents {
   status: KvmStatus;
   /** An assembled compressed frame (header + data), decoded in a worker. */
   frame: ArrayBuffer;
-  blankScreen: void;
+  /** false — the server stopped producing video, true — frames are arriving. */
+  videoSignal: boolean;
   powerStatus: boolean;
   powerResponse: { ok: boolean; code: number };
   mouseMode: MouseMode;

@@ -2,6 +2,10 @@ import http from 'node:http';
 import https from 'node:https';
 import type { KvmCredentials } from '@shared/types';
 import { AppError } from '@shared/i18n';
+import { DEFAULT_ADVANCED } from '@shared/settings';
+
+/** Used when a caller names no timeout of its own. */
+const DEFAULT_TIMEOUT_MS = DEFAULT_ADVANCED.httpTimeoutMs;
 
 /**
  * Logging in to the AMI MegaRAC web interface and obtaining the KVM session
@@ -23,6 +27,8 @@ export interface BmcSession {
   cookie: string;
   /** See TlsOptions.insecureTls. */
   insecureTls: boolean;
+  /** Timeout carried over to every later request on this session. */
+  timeoutMs: number;
 }
 
 export interface TlsOptions {
@@ -39,6 +45,8 @@ export interface TlsOptions {
    * connection is protected against MITM.
    */
   insecureTls?: boolean;
+  /** Request timeout in milliseconds. */
+  timeoutMs?: number;
 }
 
 interface RawResponse {
@@ -57,7 +65,7 @@ function request(
     cookie?: string;
     body?: string;
   },
-  timeoutMs = 15_000,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<RawResponse> {
   return new Promise((resolve, reject) => {
     const headers: Record<string, string> = {};
@@ -111,19 +119,23 @@ export async function login(
   const port = opts.port ?? (opts.secure ? 443 : 80);
   const secure = opts.secure ?? false;
   const insecureTls = opts.insecureTls ?? true;
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const body =
     `WEBVAR_USERNAME=${encodeURIComponent(username)}` +
     `&WEBVAR_PASSWORD=${encodeURIComponent(password)}`;
 
-  const res = await request({
-    host,
-    port,
-    secure,
-    insecureTls,
-    path: '/rpc/WEBSES/create.asp',
-    method: 'POST',
-    body,
-  });
+  const res = await request(
+    {
+      host,
+      port,
+      secure,
+      insecureTls,
+      path: '/rpc/WEBSES/create.asp',
+      method: 'POST',
+      body,
+    },
+    timeoutMs,
+  );
 
   const cookie = /'SESSION_COOKIE'\s*:\s*'([^']+)'/.exec(res.body)?.[1];
   if (!cookie) {
@@ -133,7 +145,7 @@ export async function login(
   // The BMC issues this cookie on a failed login too, but filled with zeroes.
   if (/^0+$/.test(cookie)) throw new AppError('error.badCredentials');
 
-  return { host, port, secure, cookie, insecureTls };
+  return { host, port, secure, cookie, insecureTls, timeoutMs };
 }
 
 /** Parses JNLP arguments: <argument>-key</argument><argument>value</argument>. */
@@ -155,15 +167,18 @@ function parseJnlpArgs(jnlp: string): Map<string, string> {
  */
 export async function fetchKvmCredentials(session: BmcSession): Promise<KvmCredentials> {
   const path = `/Java/jviewer.jnlp?EXTRNIP=${encodeURIComponent(session.host)}&JNLPSTR=JViewer`;
-  const res = await request({
-    host: session.host,
-    port: session.port,
-    secure: session.secure,
-    insecureTls: session.insecureTls,
-    path,
-    method: 'GET',
-    cookie: session.cookie,
-  });
+  const res = await request(
+    {
+      host: session.host,
+      port: session.port,
+      secure: session.secure,
+      insecureTls: session.insecureTls,
+      path,
+      method: 'GET',
+      cookie: session.cookie,
+    },
+    session.timeoutMs,
+  );
 
   const args = parseJnlpArgs(res.body);
   const kvmToken = args.get('kvmtoken');
@@ -191,15 +206,18 @@ export async function fetchKvmCredentials(session: BmcSession): Promise<KvmCrede
 /** Ends the web session. Errors are ignored — this is best effort on exit. */
 export async function logout(session: BmcSession): Promise<void> {
   try {
-    await request({
-      host: session.host,
-      port: session.port,
-      secure: session.secure,
-      insecureTls: session.insecureTls,
-      path: '/rpc/WEBSES/logout.asp',
-      method: 'GET',
-      cookie: session.cookie,
-    });
+    await request(
+      {
+        host: session.host,
+        port: session.port,
+        secure: session.secure,
+        insecureTls: session.insecureTls,
+        path: '/rpc/WEBSES/logout.asp',
+        method: 'GET',
+        cookie: session.cookie,
+      },
+      session.timeoutMs,
+    );
   } catch {
     // The session will expire by timeout anyway.
   }

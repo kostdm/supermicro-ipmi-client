@@ -34,13 +34,12 @@ interface Props {
   enabled: boolean;
   /** Num/Caps/Scroll mask reported by the BMC — lights the indicators. */
   leds: number;
+  /** Delay before auto-repeat kicks in while a key is held, and its period. */
+  repeatDelayMs: number;
+  repeatIntervalMs: number;
 }
 
-/** Delay before auto-repeat kicks in while a key is held, and its period. */
-const REPEAT_DELAY_MS = 400;
-const REPEAT_INTERVAL_MS = 60;
-
-export function VirtualKeyboard({ enabled, leds }: Props) {
+export function VirtualKeyboard({ enabled, leds, repeatDelayMs, repeatIntervalMs }: Props) {
   const { t } = useI18n();
   const [sticky, setSticky] = useState<StickyMap>({});
 
@@ -122,11 +121,11 @@ export function VirtualKeyboard({ enabled, leds }: Props) {
       repeatTimers.current.delay = window.setTimeout(() => {
         repeatTimers.current.interval = window.setInterval(
           () => tap(key.code),
-          REPEAT_INTERVAL_MS,
+          repeatIntervalMs,
         );
-      }, REPEAT_DELAY_MS);
+      }, repeatDelayMs);
     },
-    [enabled, stopRepeat, tap, toggleModifier],
+    [enabled, repeatDelayMs, repeatIntervalMs, stopRepeat, tap, toggleModifier],
   );
 
   const handleKeyUp = useCallback(

@@ -1,11 +1,14 @@
 import type { Locale } from './i18n';
+import type { AdvancedSettings } from './settings';
 import type {
+  DiscoveredServer,
   IpmiSnapshot,
   KeyEventPayload,
   KvmStatus,
   MouseEventPayload,
   MouseMode,
   PowerCommand,
+  ScanRange,
   ServerProfile,
   VirtualMediaState,
 } from './types';
@@ -18,6 +21,8 @@ export interface ConnectRequest {
   port: number;
   username: string;
   password: string;
+  /** Already resolved against the defaults by the renderer. */
+  advanced: AdvancedSettings;
 }
 
 export interface SaveServerRequest {
@@ -28,18 +33,29 @@ export interface SaveServerRequest {
   username: string;
   /** An empty string deletes the stored password, undefined leaves it as is. */
   password?: string;
+  /** Only the values that differ from the defaults. */
+  advanced?: Partial<AdvancedSettings>;
 }
 
 /** Messages from main to renderer. */
 export type KvmEvent =
   | { type: 'status'; status: KvmStatus }
-  | { type: 'blankScreen' }
+  /** false — the server stopped producing video, true — frames are arriving. */
+  | { type: 'videoSignal'; present: boolean }
   | { type: 'powerStatus'; on: boolean }
   | { type: 'powerResponse'; ok: boolean; code: number }
   | { type: 'mouseMode'; mode: MouseMode }
   | { type: 'keyboardLeds'; leds: number }
   | { type: 'activeClients'; clients: string[] }
   | { type: 'virtualMedia'; state: VirtualMediaState };
+
+/** Progress of a network scan, pushed while it runs. */
+export interface ScanProgress {
+  scanned: number;
+  total: number;
+  /** Everything found so far, in the order the replies arrived. */
+  found: DiscoveredServer[];
+}
 
 export const IpcChannel = {
   ServersList: 'servers:list',
@@ -48,6 +64,9 @@ export const IpcChannel = {
   ServersPassword: 'servers:password',
   ServersCanStorePasswords: 'servers:can-store-passwords',
   AppSetLocale: 'app:set-locale',
+  ScanLocalRange: 'scan:local-range',
+  ScanStart: 'scan:start',
+  ScanCancel: 'scan:cancel',
   KvmConnect: 'kvm:connect',
   KvmDisconnect: 'kvm:disconnect',
   KvmPower: 'kvm:power',
@@ -63,6 +82,8 @@ export const IpcChannel = {
   VmUnmount: 'vm:unmount',
   /** main -> renderer: control events. */
   KvmEvent: 'kvm:event',
+  /** main -> renderer: how far a network scan has got. */
+  ScanProgress: 'scan:progress',
   /** main -> renderer: a compressed video frame. */
   KvmFrame: 'kvm:frame',
 } as const;
@@ -77,6 +98,13 @@ export interface IpcApi {
 
   /** Tells main which language to use for native dialogs. */
   setLocale(locale: Locale): void;
+
+  /** The range covering this machine's network, or null when there is none. */
+  getLocalScanRange(): Promise<ScanRange | null>;
+  /** Sweeps the range for BMCs. Resolves with everything that answered. */
+  scanNetwork(range: ScanRange): Promise<DiscoveredServer[]>;
+  cancelScan(): Promise<void>;
+  onScanProgress(listener: (progress: ScanProgress) => void): () => void;
 
   connect(request: ConnectRequest): Promise<void>;
   disconnect(): Promise<void>;

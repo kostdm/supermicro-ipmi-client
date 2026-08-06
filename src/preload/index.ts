@@ -1,9 +1,11 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import type {
+  DiscoveredServer,
   IpmiSnapshot,
   KeyEventPayload,
   MouseMode,
   PowerCommand,
+  ScanRange,
   ServerProfile,
 } from '@shared/types';
 import type { Locale } from '@shared/i18n';
@@ -13,6 +15,7 @@ import {
   type IpcApi,
   type KvmEvent,
   type SaveServerRequest,
+  type ScanProgress,
 } from '@shared/ipc';
 
 /**
@@ -31,6 +34,18 @@ const api: IpcApi = {
     ipcRenderer.invoke(IpcChannel.ServersCanStorePasswords) as Promise<boolean>,
 
   setLocale: (locale: Locale) => ipcRenderer.send(IpcChannel.AppSetLocale, locale),
+
+  getLocalScanRange: () =>
+    ipcRenderer.invoke(IpcChannel.ScanLocalRange) as Promise<ScanRange | null>,
+  scanNetwork: (range: ScanRange) =>
+    ipcRenderer.invoke(IpcChannel.ScanStart, range) as Promise<DiscoveredServer[]>,
+  cancelScan: () => ipcRenderer.invoke(IpcChannel.ScanCancel) as Promise<void>,
+
+  onScanProgress: (listener: (progress: ScanProgress) => void) => {
+    const handler = (_event: IpcRendererEvent, payload: ScanProgress) => listener(payload);
+    ipcRenderer.on(IpcChannel.ScanProgress, handler);
+    return () => ipcRenderer.off(IpcChannel.ScanProgress, handler);
+  },
 
   connect: (request: ConnectRequest) =>
     ipcRenderer.invoke(IpcChannel.KvmConnect, request) as Promise<void>,

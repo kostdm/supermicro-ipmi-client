@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron';
-import type { KeyEventPayload, MouseMode, PowerCommand } from '@shared/types';
+import type { DiscoveredServer, KeyEventPayload, MouseMode, PowerCommand, ScanRange } from '@shared/types';
 import { IpcChannel, type ConnectRequest, type SaveServerRequest } from '@shared/ipc';
 import { AppError, DEFAULT_LOCALE, isLocale, pickLocale, translate, type Locale } from '@shared/i18n';
 import {
@@ -13,12 +13,15 @@ import {
 import { KvmController } from './kvm/controller';
 import { IpmiController } from './ipmi/controller';
 import { VirtualMediaController } from './vm/controller';
+import { NetworkScanner, localScanRange } from './net/discover';
 
 let mainWindow: BrowserWindow | null = null;
 let controller: KvmController | null = null;
 /** The IPMI session runs alongside KVM and uses the same credentials. */
 let ipmi: IpmiController | null = null;
 let virtualMedia: VirtualMediaController | null = null;
+/** At most one scan at a time: a second one would only share the airtime. */
+let scanner: NetworkScanner | null = null;
 
 /**
  * Language of the native dialogs. The renderer owns the choice and pushes it
@@ -90,6 +93,7 @@ function registerIpc(): void {
         host: request.host,
         port: request.port,
         username: request.username,
+        advanced: request.advanced,
       },
       request.password,
     ),
@@ -102,10 +106,55 @@ function registerIpc(): void {
     if (isLocale(value)) locale = value;
   });
 
+  ipcMain.handle(IpcChannel.ScanLocalRange, () => localScanRange());
+
+  ipcMain.handle(IpcChannel.ScanStart, async (_event, range: ScanRange) => {
+    scanner?.cancel();
+    const current = new NetworkScanner();
+    scanner = current;
+
+    const found: DiscoveredServer[] = [];
+    // Replies arrive out of step with the sweep, so the last known position is
+    // kept and resent whenever a BMC answers.
+    let scanned = 0;
+    let total = 0;
+
+    const report = () => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      mainWindow.webContents.send(IpcChannel.ScanProgress, { scanned, total, found });
+    };
+
+    try {
+      return await current.scan(range, {
+        onFound: (server) => {
+          found.push(server);
+          report();
+        },
+        onProgress: (done, size) => {
+          scanned = done;
+          total = size;
+          report();
+        },
+      });
+    } finally {
+      if (scanner === current) scanner = null;
+    }
+  });
+
+  ipcMain.handle(IpcChannel.ScanCancel, () => {
+    scanner?.cancel();
+    scanner = null;
+  });
+
   ipcMain.handle(IpcChannel.KvmConnect, async (_event, request: ConnectRequest) => {
     await controller?.connect(request);
     ipmi?.close();
-    ipmi = new IpmiController(request.host, request.username, request.password);
+    ipmi = new IpmiController(
+      request.host,
+      request.username,
+      request.password,
+      request.advanced,
+    );
   });
   ipcMain.handle(IpcChannel.KvmDisconnect, async () => {
     virtualMedia?.unmount();
@@ -192,6 +241,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  scanner?.cancel();
   virtualMedia?.unmount();
   ipmi?.close();
   void controller?.disconnect();

@@ -87,6 +87,11 @@ export function upsertServer(
     username: input.username,
     hasSavedPassword: Boolean(loadSecrets()[id]),
   };
+  // A profile on the defaults carries no advanced block at all, so a default
+  // that changes later applies to it.
+  if (input.advanced && Object.keys(input.advanced).length > 0) {
+    profile.advanced = input.advanced;
+  }
 
   const index = store.servers.findIndex((s) => s.id === id);
   if (index >= 0) store.servers[index] = profile;

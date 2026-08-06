@@ -15,13 +15,17 @@ interface Props {
   mouseMode: MouseMode;
   /** Whether to capture the keyboard and mouse. */
   inputEnabled: boolean;
+  /** At most one movement packet per interval — as in the original client. */
+  mouseThrottleMs: number;
   onNeedFullScreen: () => void;
 }
 
-/** At most one movement packet per interval — as in the original client. */
-const MOUSE_THROTTLE_MS = 60;
-
-export function KvmConsole({ mouseMode, inputEnabled, onNeedFullScreen }: Props) {
+export function KvmConsole({
+  mouseMode,
+  inputEnabled,
+  mouseThrottleMs,
+  onNeedFullScreen,
+}: Props) {
   const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const workerRef = useRef<Worker | null>(null);
@@ -137,9 +141,9 @@ export function KvmConsole({ mouseMode, inputEnabled, onNeedFullScreen }: Props)
       pendingMouse.current = null;
       lastMouseSent.current = Date.now();
       sendMouse(pending.x, pending.y, pending.buttons, 0);
-    }, MOUSE_THROTTLE_MS);
+    }, mouseThrottleMs);
     return () => clearInterval(timer);
-  }, [inputEnabled, sendMouse]);
+  }, [inputEnabled, mouseThrottleMs, sendMouse]);
 
   // The keyboard is listened for on the window, to catch arrows and function keys.
   useEffect(() => {

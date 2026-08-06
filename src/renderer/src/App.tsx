@@ -6,6 +6,7 @@ import type {
   ServerProfile,
   VirtualMediaState,
 } from '@shared/types';
+import { DEFAULT_ADVANCED, resolveAdvanced, type AdvancedSettings } from '@shared/settings';
 import { KvmConsole } from './components/KvmConsole';
 import { SensorPanel } from './components/SensorPanel';
 import { ServerList } from './components/ServerList';
@@ -20,10 +21,14 @@ export function App() {
   const [tab, setTab] = useState<Tab>('console');
   const [status, setStatus] = useState<KvmStatus>({ kind: 'idle' });
   const [server, setServer] = useState<ServerProfile | null>(null);
+  /** Advanced settings of the server in session, resolved against the defaults. */
+  const [advanced, setAdvanced] = useState<AdvancedSettings>(DEFAULT_ADVANCED);
   const [powerOn, setPowerOn] = useState<boolean | null>(null);
   const [mouseMode, setMouseMode] = useState<MouseMode>('absolute');
   const [keyboardLeds, setKeyboardLeds] = useState(0);
   const [activeClients, setActiveClients] = useState<string[]>([]);
+  /** Shown as the monitor indicator in the toolbar. */
+  const [videoSignal, setVideoSignal] = useState(false);
   const [virtualMedia, setVirtualMedia] = useState<VirtualMediaState>({ mounted: false });
   const [keysVisible, setKeysVisible] = useState(false);
   /*
@@ -42,6 +47,7 @@ export function App() {
           if (event.status.kind === 'idle' || event.status.kind === 'closed') {
             setPowerOn(null);
             setActiveClients([]);
+            setVideoSignal(false);
           }
           break;
         case 'powerStatus':
@@ -63,8 +69,8 @@ export function App() {
         case 'activeClients':
           setActiveClients(event.clients);
           break;
-        case 'blankScreen':
-          setNotice({ key: 'notice.noVideo' });
+        case 'videoSignal':
+          setVideoSignal(event.present);
           break;
         case 'virtualMedia':
           setVirtualMedia(event.state);
@@ -86,7 +92,9 @@ export function App() {
 
   const handleConnect = useCallback(
     async (target: ServerProfile, password: string) => {
+      const settings = resolveAdvanced(target.advanced);
       setServer(target);
+      setAdvanced(settings);
       setStatus({ kind: 'connecting' });
       try {
         await window.api.connect({
@@ -94,6 +102,7 @@ export function App() {
           port: target.port,
           username: target.username,
           password,
+          advanced: settings,
         });
       } catch (err) {
         setStatus({ kind: 'error', message: te(err) });
@@ -166,6 +175,7 @@ export function App() {
         mouseMode={mouseMode}
         keyboardLeds={keyboardLeds}
         activeClients={activeClients}
+        videoSignal={videoSignal}
         onDisconnect={() => void handleDisconnect()}
         onRefresh={() => void window.api.refreshScreen()}
         onCtrlAltDel={() => void window.api.sendCtrlAltDel()}
@@ -198,19 +208,25 @@ export function App() {
         <KvmConsole
           mouseMode={mouseMode}
           inputEnabled={connected && tab === 'console'}
+          mouseThrottleMs={advanced.mouseThrottleMs}
           onNeedFullScreen={handleNeedFullScreen}
         />
       </div>
 
       {tab === 'sensors' && (
         <div className="session__pane session__pane--scroll">
-          <SensorPanel />
+          <SensorPanel refreshIntervalMs={advanced.sensorRefreshMs} />
         </div>
       )}
 
       {/* The keyboard sits below the screen, like a system on-screen keyboard. */}
       {keysVisible && tab === 'console' && (
-        <VirtualKeyboard enabled={connected} leds={keyboardLeds} />
+        <VirtualKeyboard
+          enabled={connected}
+          leds={keyboardLeds}
+          repeatDelayMs={advanced.keyRepeatDelayMs}
+          repeatIntervalMs={advanced.keyRepeatIntervalMs}
+        />
       )}
     </div>
   );

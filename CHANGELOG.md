@@ -11,6 +11,8 @@ things have to be done.
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-08-06
+
 ### Added
 
 - Advanced settings per server: the timeouts, ports, KVM bandwidth and input
@@ -50,5 +52,6 @@ First public release.
 - Distributables for macOS (dmg, zip), Windows (NSIS, portable) and Linux
   (AppImage, deb, tar.gz).
 
-[Unreleased]: https://github.com/kostdm/supermicro-ipmi-client/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/kostdm/supermicro-ipmi-client/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/kostdm/supermicro-ipmi-client/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kostdm/supermicro-ipmi-client/releases/tag/v0.1.0

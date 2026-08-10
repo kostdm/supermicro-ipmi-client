@@ -7,8 +7,8 @@ long-deprecated Java Web Start.
 Electron + React + TypeScript, with no native dependencies and no runtime
 dependencies at all.
 
-> **Status: 0.x.** The KVM console, power control and IPMI sensors work against
-> real hardware. Virtual Media is incomplete — see [Limitations](#limitations).
+> **Status: 0.x.** The KVM console, power control, IPMI sensors and Virtual
+> Media all work against real hardware.
 
 ## Features
 
@@ -22,8 +22,11 @@ dependencies at all.
   hard reset.
 - **IPMI over LAN** (port 623) — temperature, voltage and fan sensors, chassis
   state, the system event log.
-- **Virtual media** — mounting an ISO as a virtual USB CD-ROM (see
-  [Limitations](#limitations)).
+- **Virtual media** — mounting a disk image over the IUSB protocol, either as a
+  virtual CD-ROM or as a virtual USB disk. The choice matters: a plain ISO only
+  boots as a CD-ROM, while a hybrid image (most Linux installers) boots either
+  way — which is the way out when the BMC's cd-media service is broken, as it
+  is on some boards.
 - **Network discovery** — sweeps an address range for BMCs over UDP 623 and
   offers what answered for adding to the list. The range is prefilled from this
   machine's own network.
@@ -146,32 +149,44 @@ are the details that had to be reproduced, or deliberately worked around:
   virtual media ports are only trustworthy from here: in the JNLP the BMC
   substitutes `0x7FFFFFFE` when a service is unavailable.
 - **Virtual media.** The SCSI layer lived inside a native library in the
-  original, so the CD-ROM emulation is written from the SBC-3/MMC-6
-  specifications. The housekeeping fields of an IUSB packet are copied from the
-  request: their meaning was recovered from a dump of a real exchange
-  (`[0..3]` is the data length, `[25]` the SCSI status).
+  original (`libjava{cdrom,harddisk}wrapper`), so the drive emulation is
+  written from the SBC-3/MMC-6 specifications. The reply format, which the
+  decompiled Java does not show at all — it hands a buffer to the library and
+  sends whatever comes back — was read out of that library's `ExecuteSCSICmd`
+  and `SetErrorStatus`, and confirmed against a live BMC. A reply is the
+  request echoed back with four fields changed:
+
+  | Payload bytes | Meaning |
+  | --- | --- |
+  | `0..3` | length the BMC expects — echoed untouched |
+  | `4..7` | transfer tag — echoed untouched |
+  | `9..24` | the CDB |
+  | `21..24` | in a reply: error flag, sense key, ASC, ASCQ (over the tail of the CDB) |
+  | `25..28` | in a reply: length of the data transferred (u32 LE) |
+  | `29..` | the data |
+
+  Getting `25..28` wrong is not a subtle failure: the BMC reads zero bytes
+  transferred and retries the same command once a second, forever.
 
 ## Limitations
 
 - Input encryption (Blowfish) is not implemented: BMCs do not require it by
   default.
-- **Virtual media is not finished.** Confirmed against a live BMC: IUSB
-  authentication passes, the BMC probes the device and sends `TEST UNIT READY`
-  and `READ CAPACITY(10)`. But it then loops on `READ CAPACITY` and never
-  proceeds to reading data — some detail of the response format is still
-  unaccounted for. Most likely it is the IUSB housekeeping bytes (`[4..7]` and
-  `[8]`), whose meaning was never recovered: a native library filled them in
-  the original.
-- Debugging virtual media is painful, because **the BMC does not release the
-  virtual media slot when a connection drops**. A stuck slot shows up in
-  `/rpc/getvmediacfg.asp` as `V_ACTIVE_*_SESSIONS == V_MAX_*_SESSIONS`, with the
-  port replaced by `4294967294`. Neither `ipmitool mc reset cold` nor restarting
-  the services through `/rpc/setvmediacfg.asp` helps; fully removing power
-  partially does. In practice that means one debugging attempt per power cycle.
-- On the test bench the `cd-media` service additionally turned out to have a
-  corrupted configuration (`IFCNAME: ''`, port `4294967294`), and the firmware
-  refuses to reconfigure it through `/rpc/setservicecfg.asp` (`HAPI_STATUS`
-  384/387). `fd-media` (5122) and `hd-media` (5123) still work.
+- Only images are redirected, not physical drives in this machine.
+- Virtual media is read-only: `WRITE(10)` is refused. Booting an installer
+  needs nothing more, and a writable redirect would let the remote server
+  modify a file on your disk.
+- **A BMC may not release the virtual media slot when a connection drops.** A
+  stuck slot shows up in `/rpc/getvmediacfg.asp` as
+  `V_ACTIVE_*_SESSIONS == V_MAX_*_SESSIONS`, with the port replaced by
+  `4294967294`. Neither `ipmitool mc reset cold` nor restarting the services
+  through `/rpc/setvmediacfg.asp` helps; fully removing power does.
+- On the test bench the `cd-media` service turned out to have a corrupted
+  configuration (`IFCNAME: ''`, port `4294967294`), and the firmware refuses to
+  reconfigure it through `/rpc/setservicecfg.asp` (`HAPI_STATUS` 384/387).
+  `fd-media` (5122) and `hd-media` (5123) work, which is why the mount menu
+  offers "as a USB disk" — a hybrid ISO boots that way just as well. Services
+  the BMC reports as unavailable are shown disabled in that menu.
 
 ## FAQ
 

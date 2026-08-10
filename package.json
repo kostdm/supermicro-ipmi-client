@@ -41,6 +41,7 @@
     "check:vmedia": "tsx --tsconfig tsconfig.node.json scripts/check-vmedia.ts",
     "check:hotkey": "tsx --tsconfig tsconfig.node.json scripts/check-hotkey.ts",
     "probe:vmedia": "tsx --tsconfig tsconfig.node.json scripts/probe-vmedia.ts",
+    "vm:debug": "tsx --tsconfig tsconfig.node.json scripts/vm-debug.ts",
     "dump:services": "tsx --tsconfig tsconfig.node.json scripts/dump-services.ts",
     "decode:frame": "tsx --tsconfig tsconfig.node.json scripts/decode-frame.ts",
     "e2e": "tsx --tsconfig tsconfig.node.json scripts/e2e-console.ts",

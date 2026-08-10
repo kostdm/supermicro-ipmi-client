@@ -2,9 +2,8 @@
  * Virtual Media protocol reconnaissance: connects to the CD-ROM port,
  * authenticates and hex-dumps everything the BMC sends.
  *
- * Needed because the SCSI layer in the original JViewer lives in a native
- * library, so the layout of the housekeeping fields cannot be recovered from
- * the decompiled code — only a real exchange shows it.
+ * This is reconnaissance only: it answers nothing. To serve an image and watch
+ * the exchange, use `npm run vm:debug` instead.
  *
  * Run: npm run probe:vmedia -- <host> [user] [password]
  */
@@ -71,11 +70,11 @@ function describeRequest(packet: Buffer): void {
     `  header: dataPacketLen=${dataLen} seq=${packet.readUInt32LE(24)} ` +
       `instance=${packet.readUInt8(23)} direction=0x${packet.readUInt8(19).toString(16)}`,
   );
-  console.log(`  payload[0..8]  = ${hex(payload.subarray(0, 9))}   <- purpose unknown`);
+  console.log(`  payload[0..8]  = ${hex(payload.subarray(0, 9))}   <- expected length, tag`);
   console.log(`  payload[9..24] = ${hex(cdb)}   <- CDB, opcode 0x${cdb[0].toString(16)}`);
-  console.log(`  payload[25..29]= ${hex(payload.subarray(25, 30))}   <- purpose unknown`);
-  if (payload.length > 30) {
-    console.log(`  data after the SCSI struct: ${payload.length - 30} bytes`);
+  console.log(`  payload[25..28]= ${hex(payload.subarray(25, 29))}   <- data length in a reply`);
+  if (payload.length > 29) {
+    console.log(`  data after the SCSI struct: ${payload.length - 29} bytes`);
   }
 }
 

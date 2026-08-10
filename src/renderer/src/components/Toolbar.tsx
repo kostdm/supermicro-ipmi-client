@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import type { MouseMode, PowerCommand, VirtualMediaState } from '@shared/types';
+import type {
+  MouseMode,
+  PowerCommand,
+  VirtualMediaKind,
+  VirtualMediaServices,
+  VirtualMediaState,
+} from '@shared/types';
 import { LOCALES, type Locale } from '@shared/i18n';
 import { useI18n } from '../i18n';
 
@@ -13,8 +19,10 @@ interface Props {
   videoSignal: boolean;
   tab: 'console' | 'sensors';
   virtualMedia: VirtualMediaState;
+  /** Which media services this BMC offers — a broken one is shown disabled. */
+  mediaServices: VirtualMediaServices;
   keysVisible: boolean;
-  onMountIso: () => void;
+  onMountIso: (kind: VirtualMediaKind) => void;
   onUnmountIso: () => void;
   onToggleKeys: () => void;
   onDisconnect: () => void;
@@ -42,6 +50,9 @@ const LED_LABELS: Array<[number, string]> = [
 ];
 
 const LOCALE_NAMES: Record<Locale, string> = { en: 'EN', ru: 'RU' };
+
+/** CD-ROM first: it is what an ISO is meant to be. */
+const MEDIA_KINDS: VirtualMediaKind[] = ['cdrom', 'harddisk'];
 
 /**
  * The video signal indicator: a monitor, struck through when the server is
@@ -76,6 +87,7 @@ export function Toolbar({
   videoSignal,
   tab,
   virtualMedia,
+  mediaServices,
   keysVisible,
   onDisconnect,
   onRefresh,
@@ -89,6 +101,7 @@ export function Toolbar({
 }: Props) {
   const { t, locale, setLocale } = useI18n();
   const [powerMenuOpen, setPowerMenuOpen] = useState(false);
+  const [mediaMenuOpen, setMediaMenuOpen] = useState(false);
   const [confirming, setConfirming] = useState<PowerCommand | null>(null);
 
   const runPower = (command: PowerCommand, dangerous: boolean) => {
@@ -179,14 +192,44 @@ export function Toolbar({
             type="button"
             className="button"
             onClick={onUnmountIso}
-            title={t('toolbar.mountedTitle', { path: virtualMedia.isoPath ?? '' })}
+            title={t('toolbar.mountedTitle', {
+              path: virtualMedia.isoPath ?? '',
+              kind: t(`media.${virtualMedia.kind ?? 'cdrom'}`),
+            })}
           >
             {t('toolbar.unmountIso')}
           </button>
         ) : (
-          <button type="button" className="button" onClick={onMountIso}>
-            {t('toolbar.mountIso')}
-          </button>
+          <div className="dropdown">
+            <button
+              type="button"
+              className="button"
+              data-testid="mount-iso"
+              onClick={() => setMediaMenuOpen((open) => !open)}
+            >
+              {t('toolbar.mountIso')}
+            </button>
+            {mediaMenuOpen && (
+              <ul className="dropdown__menu">
+                {MEDIA_KINDS.map((kind) => (
+                  <li key={kind}>
+                    <button
+                      type="button"
+                      className="dropdown__item"
+                      disabled={!mediaServices[kind]}
+                      title={mediaServices[kind] ? undefined : t('media.unavailable')}
+                      onClick={() => {
+                        setMediaMenuOpen(false);
+                        onMountIso(kind);
+                      }}
+                    >
+                      {t(`media.${kind}`)}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
 
         <div className="dropdown">

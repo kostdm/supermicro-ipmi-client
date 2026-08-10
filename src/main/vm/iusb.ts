@@ -1,16 +1,41 @@
 /**
  * IUSB protocol framing (Virtual Media, ports 5120/5122/5123).
  *
- * A packet is a 32-byte header plus a payload of dataPacketLen bytes. The
- * first 30 bytes of the payload are a housekeeping SCSI structure whose byte 9
- * coincides with byte 0 of the CDB. The layout was taken from JViewer's
- * IUSBHeader.java and IUSBSCSI.java.
+ * A packet is a 32-byte header plus a payload of dataPacketLen bytes, which
+ * begins with a SCSI structure whose byte 9 coincides with byte 0 of the CDB.
+ * The header layout comes from JViewer's IUSBHeader.java; the structure
+ * layout, which JViewer leaves to a native library, was recovered from that
+ * library (libjavaharddiskwrapper / libjavacdromwrapper, ExecuteSCSICmd and
+ * SetErrorStatus) and confirmed against a live BMC:
+ *
+ *   0..3    length of the data the BMC expects (echoed back untouched)
+ *   4..7    transfer tag, incremented by the BMC (echoed back untouched)
+ *   8       always 1 (echoed back untouched)
+ *   9..24   CDB, up to 16 bytes
+ *   21..24  in a REPLY these four bytes are overwritten with the result:
+ *           an error flag, then the sense key and the additional codes
+ *   25..28  in a REPLY, the length of the data actually transferred (u32 LE)
+ *   29..    the data itself
+ *
+ * That the status overlaps the tail of the CDB is not a mistake: the native
+ * library writes it exactly there, over a CDB it has already parsed.
  */
+
+import { ScsiStatus } from './scsi';
 
 export const IUSB_HEADER_SIZE = 32;
 
-/** Size of the housekeeping SCSI structure inside the payload. */
-export const IUSB_SCSI_STRUCT_SIZE = 30;
+/** Size of the SCSI structure preceding the data inside the payload. */
+export const IUSB_SCSI_STRUCT_SIZE = 29;
+
+/**
+ * Offset of the connection status in an authentication reply.
+ *
+ * The auth exchange predates the SCSI structure and uses a fixed layout of its
+ * own: JViewer reads the status at 30 and the address of the other client at
+ * 31, regardless of how long the SCSI structure is.
+ */
+const AUTH_STATUS_OFFSET = 30;
 
 /** Offset of the CDB inside the payload. */
 export const CDB_OFFSET = 9;
@@ -52,6 +77,8 @@ export interface IusbHeader {
 export interface IusbPacket {
   header: IusbHeader;
   payload: Buffer;
+  /** The packet as it arrived — a reply is built by editing a copy of it. */
+  raw: Buffer;
   /** CDB byte 0 — also the housekeeping code on non-SCSI packets. */
   opcode: number;
   cdb: Buffer;
@@ -71,9 +98,7 @@ export function buildIusbHeader(options: {
   header.writeUInt8(1, 8); // major
   header.writeUInt8(0, 9); // minor
   header.writeUInt8(IUSB_HEADER_SIZE, 10);
-  // Byte 11 is a checksum. The original client computes it over a garbage
-  // range and the BMC never verifies it; write a zero.
-  header.writeUInt8(0, 11);
+  header.writeUInt8(0, 11); // checksum, filled in by writeHeaderChecksum
   header.writeUInt32LE(options.dataPacketLen, 12);
   header.writeUInt8(0, 16); // serverCaps
   header.writeUInt8(options.deviceType ?? DeviceType.CDROM, 17);
@@ -84,7 +109,26 @@ export function buildIusbHeader(options: {
   header.writeUInt8(options.clientData ?? 0, 22);
   header.writeUInt8(options.instance ?? 0, 23);
   header.writeUInt32LE(options.sequenceNumber ?? 0, 24);
+  writeHeaderChecksum(header);
   return header;
+}
+
+/**
+ * Byte 11 of the header, chosen so that bytes 0..27 sum to zero.
+ *
+ * The last four bytes stay out of the sum: they are opaque to us — the BMC
+ * puts what looks like one of its own pointers there and wants it back
+ * untouched — and leaving them out is what makes the checksums the BMC itself
+ * sends add up.
+ *
+ * The BMC does not verify the field (it accepts a zero there quite happily),
+ * so this is a courtesy rather than a requirement.
+ */
+function writeHeaderChecksum(header: Buffer): void {
+  header.writeUInt8(0, 11);
+  let sum = 0;
+  for (let i = 0; i < 28; i++) sum += header[i];
+  header.writeUInt8((0x100 - (sum & 0xff)) & 0xff, 11);
 }
 
 export function parseIusbPacket(buf: Buffer): IusbPacket | null {
@@ -109,6 +153,7 @@ export function parseIusbPacket(buf: Buffer): IusbPacket | null {
       sequenceNumber: buf.readUInt32LE(24),
     },
     payload,
+    raw: buf,
     opcode: payload.length > CDB_OFFSET ? payload.readUInt8(CDB_OFFSET) : 0,
     cdb: payload.subarray(CDB_OFFSET, CDB_OFFSET + CDB_MAX_LENGTH),
   };
@@ -123,9 +168,10 @@ export function buildAuthPacket(token: string, instance = 0, deviceType: number 
   const packet = Buffer.alloc(IUSB_HEADER_SIZE + AUTH_PAYLOAD_SIZE);
   buildIusbHeader({ dataPacketLen: AUTH_PAYLOAD_SIZE, deviceType, instance }).copy(packet, 0);
   packet.writeUInt8(IusbOpcode.AUTH, IUSB_HEADER_SIZE + CDB_OFFSET);
-  // The token follows the housekeeping structure after one zero byte.
-  packet.writeUInt8(0, IUSB_HEADER_SIZE + IUSB_SCSI_STRUCT_SIZE);
-  packet.write(token, IUSB_HEADER_SIZE + IUSB_SCSI_STRUCT_SIZE + 1, 'ascii');
+  // The token sits where the reply carries the connection status, after one
+  // zero byte.
+  packet.writeUInt8(0, IUSB_HEADER_SIZE + AUTH_STATUS_OFFSET);
+  packet.write(token, IUSB_HEADER_SIZE + AUTH_STATUS_OFFSET + 1, 'ascii');
   return packet;
 }
 
@@ -136,11 +182,11 @@ export interface AuthResult {
 }
 
 export function parseAuthAck(packet: IusbPacket): AuthResult {
-  const status = packet.payload.length > IUSB_SCSI_STRUCT_SIZE
-    ? packet.payload.readUInt8(IUSB_SCSI_STRUCT_SIZE)
+  const status = packet.payload.length > AUTH_STATUS_OFFSET
+    ? packet.payload.readUInt8(AUTH_STATUS_OFFSET)
     : 0;
   const otherIp = packet.payload
-    .subarray(IUSB_SCSI_STRUCT_SIZE + 1, IUSB_SCSI_STRUCT_SIZE + 25)
+    .subarray(AUTH_STATUS_OFFSET + 1, AUTH_STATUS_OFFSET + 25)
     .toString('ascii')
     .replace(/\0.*$/s, '')
     .trim();
@@ -150,13 +196,11 @@ export function parseAuthAck(packet: IusbPacket): AuthResult {
 /**
  * The reply to a SCSI command.
  *
- * The housekeeping fields of the structure (bytes 0..8 and 25..29) were filled
- * in by a native library in the original, and their meaning cannot be
- * recovered from the decompiled code. So the request structure is copied
- * wholesale and only the fields we do understand are changed: the length of
- * the data transferred, the SCSI status and the sense data. The header is
- * mirrored back as well, which keeps the reply tied to its request (sequence
- * number, device number and the rest).
+ * The request is mirrored back and only the result fields are overwritten:
+ * everything else the BMC sent — the tag, the trailing four header bytes it
+ * treats as its own — has to come back exactly as it went out, or the BMC does
+ * not recognise the reply as belonging to its request and repeats the command
+ * once a second forever.
  */
 export function buildScsiResponse(
   request: IusbPacket,
@@ -164,29 +208,25 @@ export function buildScsiResponse(
 ): Buffer {
   const payload = Buffer.alloc(IUSB_SCSI_STRUCT_SIZE + result.data.length);
 
-  // Use the request's housekeeping structure as the basis of the reply.
+  // Use the request's SCSI structure as the basis of the reply.
   request.payload.copy(payload, 0, 0, Math.min(IUSB_SCSI_STRUCT_SIZE, request.payload.length));
 
-  // Bytes 0..3 hold the length of the data actually transferred.
-  payload.writeUInt32LE(result.data.length, 0);
-  // Byte 25 is the SCSI status, then the sense key and additional codes.
-  payload.writeUInt8(result.status, 25);
-  payload.writeUInt8(result.sense?.key ?? 0, 26);
-  payload.writeUInt8(result.sense?.asc ?? 0, 27);
-  payload.writeUInt8(result.sense?.ascq ?? 0, 28);
-  payload.writeUInt8(0, 29);
+  // The result goes over the tail of the CDB: a flag rather than a SCSI status
+  // byte (the BMC turns it into CHECK CONDITION itself), then the sense data.
+  payload.writeUInt8(result.status === ScsiStatus.GOOD ? 0 : 1, 21);
+  payload.writeUInt8(result.sense?.key ?? 0, 22);
+  payload.writeUInt8(result.sense?.asc ?? 0, 23);
+  payload.writeUInt8(result.sense?.ascq ?? 0, 24);
+  // How much data actually follows the structure.
+  payload.writeUInt32LE(result.data.length, 25);
 
   result.data.copy(payload, IUSB_SCSI_STRUCT_SIZE);
 
-  const header = buildIusbHeader({
-    dataPacketLen: payload.length,
-    deviceType: request.header.deviceType,
-    instance: request.header.instance,
-    sequenceNumber: request.header.sequenceNumber,
-    deviceNumber: request.header.deviceNumber,
-    interfaceNumber: request.header.interfaceNumber,
-    clientData: request.header.clientData,
-  });
+  const header = Buffer.alloc(IUSB_HEADER_SIZE);
+  request.raw.copy(header, 0, 0, IUSB_HEADER_SIZE);
+  header.writeUInt32LE(payload.length, 12);
+  header.writeUInt8(0x80, 19); // direction: the reply always travels one way
+  writeHeaderChecksum(header);
 
   return Buffer.concat([header, payload]);
 }

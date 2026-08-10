@@ -147,10 +147,27 @@ export interface IpmiSnapshot {
   sel: IpmiSelEntry[];
 }
 
+/**
+ * How an image is presented to the server.
+ *
+ * The BMC keeps a separate service, and a separate port, for each: an image
+ * mounted as a CD-ROM appears to the BIOS as an optical drive, one mounted as
+ * a hard disk as a USB stick. Hybrid images (most Linux installers) boot
+ * either way; a plain ISO only as a CD-ROM.
+ */
+export type VirtualMediaKind = 'cdrom' | 'harddisk';
+
+/** Which of the media services the BMC actually offers. */
+export interface VirtualMediaServices {
+  cdrom: boolean;
+  harddisk: boolean;
+}
+
 /** Virtual media state. */
 export interface VirtualMediaState {
   mounted: boolean;
   isoPath?: string;
+  kind?: VirtualMediaKind;
   /** How many bytes of the image have been served to the server. */
   bytesServed?: number;
   /** The guest system asked for the disk to be ejected. */

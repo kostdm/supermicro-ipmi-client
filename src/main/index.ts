@@ -1,6 +1,13 @@
 import { join } from 'node:path';
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron';
-import type { DiscoveredServer, KeyEventPayload, MouseMode, PowerCommand, ScanRange } from '@shared/types';
+import type {
+  DiscoveredServer,
+  KeyEventPayload,
+  MouseMode,
+  PowerCommand,
+  ScanRange,
+  VirtualMediaKind,
+} from '@shared/types';
 import { IpcChannel, type ConnectRequest, type SaveServerRequest } from '@shared/ipc';
 import { AppError, DEFAULT_LOCALE, isLocale, pickLocale, translate, type Locale } from '@shared/i18n';
 import {
@@ -178,18 +185,25 @@ function registerIpc(): void {
     return result.canceled ? null : (result.filePaths[0] ?? null);
   });
 
-  ipcMain.handle(IpcChannel.VmMount, async (_event, isoPath: string) => {
-    if (!controller || !mainWindow) throw new AppError('error.noConnection');
-    const connection = controller.connectionInfo;
-    if (!connection) throw new AppError('error.noKvmSession');
-    if (!controller.isCdMediaAvailable) throw new AppError('error.cdServiceUnavailable');
+  ipcMain.handle(
+    IpcChannel.VmMount,
+    async (_event, isoPath: string, kind: VirtualMediaKind = 'cdrom') => {
+      if (!controller || !mainWindow) throw new AppError('error.noConnection');
+      const connection = controller.connectionInfo;
+      if (!connection) throw new AppError('error.noKvmSession');
+      if (!controller.mediaServices[kind]) {
+        throw new AppError(
+          kind === 'cdrom' ? 'error.cdServiceUnavailable' : 'error.hdServiceUnavailable',
+        );
+      }
 
-    virtualMedia?.unmount();
-    virtualMedia = new VirtualMediaController(mainWindow, connection, (attached) =>
-      controller?.notifyMediaState(attached),
-    );
-    await virtualMedia.mount(isoPath);
-  });
+      virtualMedia?.unmount();
+      virtualMedia = new VirtualMediaController(mainWindow, connection, (attached) =>
+        controller?.notifyMediaState(attached),
+      );
+      await virtualMedia.mount(isoPath, kind);
+    },
+  );
 
   ipcMain.handle(IpcChannel.VmUnmount, () => {
     virtualMedia?.unmount();

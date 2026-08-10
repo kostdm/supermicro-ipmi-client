@@ -115,9 +115,12 @@ const EN: Record<string, string> = {
   'toolbar.keyboard': '⌨ Keyboard',
   'toolbar.keyboardTitle': 'On-screen keyboard: clicks that bypass the host keyboard',
   'toolbar.refresh': 'Refresh screen',
-  'toolbar.mountIso': 'Mount ISO',
+  'toolbar.mountIso': 'Mount image ▾',
   'toolbar.unmountIso': '💿 Eject image',
-  'toolbar.mountedTitle': 'Mounted image: {path}',
+  'toolbar.mountedTitle': 'Mounted image: {path} ({kind})',
+  'media.cdrom': 'As a CD-ROM',
+  'media.harddisk': 'As a USB disk',
+  'media.unavailable': 'The BMC does not offer this service',
   'toolbar.powerMenu': 'Power ▾',
   'toolbar.sessions': 'sessions: {count}',
   'toolbar.mouseMode': 'Mouse mode',
@@ -243,7 +246,11 @@ const EN: Record<string, string> = {
   'error.noKvmSession': 'The KVM session is not established',
   'error.cdServiceUnavailable':
     'The BMC reports the CD redirection service as unavailable: every slot is ' +
-    'taken or the service is disabled. Fully power-cycling the server frees the slot.',
+    'taken or the service is disabled. Fully power-cycling the server frees the slot. ' +
+    'A hybrid image can be mounted as a USB disk instead.',
+  'error.hdServiceUnavailable':
+    'The BMC reports the hard disk redirection service as unavailable: every ' +
+    'slot is taken or the service is disabled. Fully power-cycling the server frees the slot.',
   'error.requestTimeout': 'The request to the BMC timed out',
   'error.badCredentials': 'The BMC rejected the login: wrong user name or password',
   'error.noSessionCookie': 'Could not obtain SESSION_COOKIE (HTTP {status})',
@@ -351,9 +358,12 @@ const RU: Record<string, string> = {
   'toolbar.keyboard': '⌨ Клавиатура',
   'toolbar.keyboardTitle': 'Экранная клавиатура: нажатия мышью в обход клавиатуры хоста',
   'toolbar.refresh': 'Обновить экран',
-  'toolbar.mountIso': 'Подключить ISO',
+  'toolbar.mountIso': 'Подключить образ ▾',
   'toolbar.unmountIso': '💿 Отключить образ',
-  'toolbar.mountedTitle': 'Подключён образ: {path}',
+  'toolbar.mountedTitle': 'Подключён образ: {path} ({kind})',
+  'media.cdrom': 'Как CD-ROM',
+  'media.harddisk': 'Как USB-диск',
+  'media.unavailable': 'BMC не предоставляет эту службу',
   'toolbar.powerMenu': 'Питание ▾',
   'toolbar.sessions': 'сессий: {count}',
   'toolbar.mouseMode': 'Режим мыши',
@@ -479,7 +489,11 @@ const RU: Record<string, string> = {
   'error.noKvmSession': 'KVM-сессия не установлена',
   'error.cdServiceUnavailable':
     'BMC сообщает, что служба CD-редиректа недоступна: все слоты заняты ' +
-    'или служба выключена. Освободить слот помогает полное обесточивание сервера.',
+    'или служба выключена. Освободить слот помогает полное обесточивание сервера. ' +
+    'Гибридный образ можно подключить как USB-диск.',
+  'error.hdServiceUnavailable':
+    'BMC сообщает, что служба редиректа жёсткого диска недоступна: все слоты ' +
+    'заняты или служба выключена. Освободить слот помогает полное обесточивание сервера.',
   'error.requestTimeout': 'Таймаут запроса к BMC',
   'error.badCredentials': 'BMC отклонил вход: неверный логин или пароль',
   'error.noSessionCookie': 'Не удалось получить SESSION_COOKIE (HTTP {status})',

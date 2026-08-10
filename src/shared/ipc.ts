@@ -10,6 +10,8 @@ import type {
   PowerCommand,
   ScanRange,
   ServerProfile,
+  VirtualMediaKind,
+  VirtualMediaServices,
   VirtualMediaState,
 } from './types';
 
@@ -47,7 +49,9 @@ export type KvmEvent =
   | { type: 'mouseMode'; mode: MouseMode }
   | { type: 'keyboardLeds'; leds: number }
   | { type: 'activeClients'; clients: string[] }
-  | { type: 'virtualMedia'; state: VirtualMediaState };
+  | { type: 'virtualMedia'; state: VirtualMediaState }
+  /** Which media services this BMC offers — known once the session is up. */
+  | { type: 'mediaServices'; services: VirtualMediaServices };
 
 /** Progress of a network scan, pushed while it runs. */
 export interface ScanProgress {
@@ -121,8 +125,8 @@ export interface IpcApi {
 
   /** Opens the native ISO picker. Returns null when cancelled. */
   chooseIso(): Promise<string | null>;
-  /** Mounts an image as a virtual CD-ROM. */
-  mountIso(isoPath: string): Promise<void>;
+  /** Mounts an image as a virtual CD-ROM or as a virtual USB disk. */
+  mountIso(isoPath: string, kind: VirtualMediaKind): Promise<void>;
   unmountIso(): Promise<void>;
 
   onEvent(listener: (event: KvmEvent) => void): () => void;

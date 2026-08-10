@@ -1,11 +1,11 @@
 import type { BrowserWindow } from 'electron';
-import type { VirtualMediaState } from '@shared/types';
+import type { VirtualMediaKind, VirtualMediaState } from '@shared/types';
 import { IpcChannel } from '@shared/ipc';
 import { AppError } from '@shared/i18n';
 import { VirtualMediaSession } from './session';
 
 /**
- * Mounts an ISO as a virtual CD-ROM and reports the state to the renderer.
+ * Mounts an image as virtual media and reports the state to the renderer.
  */
 export class VirtualMediaController {
   private session: VirtualMediaSession | null = null;
@@ -13,7 +13,11 @@ export class VirtualMediaController {
 
   constructor(
     private readonly window: BrowserWindow,
-    private readonly connection: { host: string; cdPort: number; token: string },
+    private readonly connection: {
+      host: string;
+      token: string;
+      ports: Record<VirtualMediaKind, number>;
+    },
     /** The BMC is told about media state changes over the KVM channel. */
     private readonly notifyMediaState: (attached: boolean) => void,
   ) {}
@@ -23,14 +27,15 @@ export class VirtualMediaController {
   }
 
   /** Mounts an image and waits for SCSI requests from the BMC. */
-  async mount(isoPath: string): Promise<void> {
+  async mount(isoPath: string, kind: VirtualMediaKind): Promise<void> {
     this.unmount();
 
     const session = new VirtualMediaSession({
       host: this.connection.host,
-      port: this.connection.cdPort,
+      port: this.connection.ports[kind],
       token: this.connection.token,
       isoPath,
+      kind,
     });
     this.session = session;
 
@@ -41,7 +46,7 @@ export class VirtualMediaController {
         clearTimeout(timer);
         // The BMC only shows the medium to the guest after this packet.
         this.notifyMediaState(true);
-        this.update({ mounted: true, isoPath, bytesServed: 0 });
+        this.update({ mounted: true, isoPath, kind, bytesServed: 0 });
         resolve();
       });
       session.once('error', (err) => {

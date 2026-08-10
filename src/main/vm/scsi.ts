@@ -36,6 +36,7 @@ export const SenseKey = {
   MEDIUM_ERROR: 0x03,
   ILLEGAL_REQUEST: 0x05,
   UNIT_ATTENTION: 0x06,
+  DATA_PROTECT: 0x07,
 } as const;
 
 /** Additional codes: [ASC, ASCQ]. */
@@ -46,6 +47,7 @@ const Asc = {
   LBA_OUT_OF_RANGE: [0x21, 0x00],
   MEDIUM_NOT_PRESENT: [0x3a, 0x00],
   MEDIUM_MAY_HAVE_CHANGED: [0x28, 0x00],
+  WRITE_PROTECTED: [0x27, 0x00],
 } as const;
 
 export interface ScsiResult {
@@ -168,6 +170,12 @@ export class IsoScsiTarget {
         return this.readCapacity10();
       case 0x28:
         return this.read10(cdb);
+      // The medium is served read-only, so a write is refused as such rather
+      // than as an unknown command: a guest that asks gets a straight answer.
+      case 0x0a: // WRITE(6)
+      case 0x2a: // WRITE(10)
+      case 0xaa: // WRITE(12)
+        return fail(SenseKey.DATA_PROTECT, Asc.WRITE_PROTECTED);
       case 0x2b: // SEEK(10)
         return GOOD;
       case 0x35: // SYNCHRONIZE CACHE: the medium is read-only

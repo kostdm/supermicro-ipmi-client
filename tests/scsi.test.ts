@@ -177,6 +177,13 @@ describe('IsoScsiTarget', () => {
     expect(result.data[12]).toBe(0x21);
   });
 
+  it('refuses a write as write-protected rather than as unknown', () => {
+    const result = open().execute(Buffer.from([0x2a, 0, 0, 0, 0, 0, 0, 0, 1, 0]));
+    expect(result.status).toBe(ScsiStatus.CHECK_CONDITION);
+    expect(result.sense?.key).toBe(0x07); // data protect
+    expect(result.sense?.asc).toBe(0x27); // write protected
+  });
+
   it('rejects an unknown command', () => {
     const result = open().execute(Buffer.from([0xff]));
     expect(result.status).toBe(ScsiStatus.CHECK_CONDITION);
@@ -184,6 +191,9 @@ describe('IsoScsiTarget', () => {
     expect(result.sense?.asc).toBe(0x20); // invalid command
   });
 });
+
+/** Where the authentication reply keeps its status, regardless of the SCSI struct. */
+const AUTH_STATUS_OFFSET = 30;
 
 describe('IUSB framing', () => {
   it('builds a 160-byte authentication packet', () => {
@@ -200,10 +210,10 @@ describe('IUSB framing', () => {
   });
 
   it('parses the authentication acknowledgement', () => {
-    // The BMC reply: the status sits right after the housekeeping structure.
+    // The BMC reply: the auth exchange keeps the status at a fixed offset 30.
     const payload = Buffer.alloc(55);
     payload.writeUInt8(IusbOpcode.REDIRECTION_ACK, 9);
-    payload.writeUInt8(1, IUSB_SCSI_STRUCT_SIZE);
+    payload.writeUInt8(1, AUTH_STATUS_OFFSET);
     const header = Buffer.alloc(IUSB_HEADER_SIZE);
     Buffer.from('IUSB    ', 'ascii').copy(header, 0);
     header.writeUInt32LE(payload.length, 12);
@@ -217,8 +227,8 @@ describe('IUSB framing', () => {
   it('recognises a refusal naming the client holding the slot', () => {
     const payload = Buffer.alloc(55);
     payload.writeUInt8(IusbOpcode.REDIRECTION_ACK, 9);
-    payload.writeUInt8(0, IUSB_SCSI_STRUCT_SIZE);
-    payload.write('192.168.1.50', IUSB_SCSI_STRUCT_SIZE + 1, 'ascii');
+    payload.writeUInt8(0, AUTH_STATUS_OFFSET);
+    payload.write('192.168.1.50', AUTH_STATUS_OFFSET + 1, 'ascii');
     const header = Buffer.alloc(IUSB_HEADER_SIZE);
     Buffer.from('IUSB    ', 'ascii').copy(header, 0);
     header.writeUInt32LE(payload.length, 12);
@@ -234,17 +244,25 @@ describe('IUSB framing', () => {
     expect(parseIusbPacket(buf)).toBeNull();
   });
 
-  it('builds a SCSI reply that stays tied to its request', () => {
-    const requestPayload = Buffer.alloc(IUSB_SCSI_STRUCT_SIZE);
-    requestPayload.writeUInt8(0x28, 9); // READ(10)
-    const requestHeader = Buffer.alloc(IUSB_HEADER_SIZE);
-    Buffer.from('IUSB    ', 'ascii').copy(requestHeader, 0);
-    requestHeader.writeUInt32LE(requestPayload.length, 12);
-    requestHeader.writeUInt8(5, 17);
-    requestHeader.writeUInt32LE(42, 24); // sequence number
-    requestHeader.writeUInt8(3, 23); // device number
+  /** A request as the BMC sends it: 29 payload bytes, tag and trailing bytes set. */
+  function buildRequest(opcode: number): Buffer {
+    const payload = Buffer.alloc(IUSB_SCSI_STRUCT_SIZE);
+    payload.writeUInt32LE(2048, 0); // length expected
+    payload.writeUInt32LE(0x1234, 4); // transfer tag
+    payload.writeUInt8(1, 8);
+    payload.writeUInt8(opcode, 9);
+    const header = Buffer.alloc(IUSB_HEADER_SIZE);
+    Buffer.from('IUSB    ', 'ascii').copy(header, 0);
+    header.writeUInt32LE(payload.length, 12);
+    header.writeUInt8(5, 17);
+    header.writeUInt8(3, 23); // device number
+    header.writeUInt32LE(42, 24); // sequence number
+    header.write('\xc0\x64\x0a\xc2', 28, 'latin1'); // opaque to us, echoed back
+    return Buffer.concat([header, payload]);
+  }
 
-    const request = parseIusbPacket(Buffer.concat([requestHeader, requestPayload]))!;
+  it('builds a SCSI reply that stays tied to its request', () => {
+    const request = parseIusbPacket(buildRequest(0x28))!; // READ(10)
     const data = Buffer.alloc(CD_SECTOR_SIZE, 0xab);
     const response = buildScsiResponse(request, {
       status: ScsiStatus.GOOD,
@@ -254,13 +272,41 @@ describe('IUSB framing', () => {
 
     expect(response.subarray(0, 8).toString('ascii')).toBe('IUSB    ');
     expect(response.readUInt32LE(12)).toBe(IUSB_SCSI_STRUCT_SIZE + data.length);
-    // The tie to the request is preserved.
+    // The tie to the request is preserved, down to the bytes we cannot read.
     expect(response.readUInt32LE(24)).toBe(42);
     expect(response.readUInt8(23)).toBe(3);
     expect(response.readUInt8(19)).toBe(0x80);
-    // Data length and status.
-    expect(response.readUInt32LE(IUSB_HEADER_SIZE)).toBe(data.length);
-    expect(response.readUInt8(IUSB_HEADER_SIZE + 25)).toBe(ScsiStatus.GOOD);
+    expect(response.subarray(28, 32)).toEqual(request.raw.subarray(28, 32));
+    expect(response.readUInt32LE(IUSB_HEADER_SIZE + 4)).toBe(0x1234); // the tag
+    // The result: no error, and the length of the data that follows.
+    expect(response.readUInt8(IUSB_HEADER_SIZE + 21)).toBe(0);
+    expect(response.readUInt32LE(IUSB_HEADER_SIZE + 25)).toBe(data.length);
     expect(response.subarray(IUSB_HEADER_SIZE + IUSB_SCSI_STRUCT_SIZE)).toEqual(data);
+  });
+
+  it('reports a failure as a flag with the sense data beside it', () => {
+    const request = parseIusbPacket(buildRequest(0x28))!;
+    const response = buildScsiResponse(request, {
+      status: ScsiStatus.CHECK_CONDITION,
+      data: Buffer.alloc(0),
+      sense: { key: SenseKey.ILLEGAL_REQUEST, asc: 0x21, ascq: 0x00 },
+    });
+
+    expect(response.readUInt8(IUSB_HEADER_SIZE + 21)).toBe(1);
+    expect(response.readUInt8(IUSB_HEADER_SIZE + 22)).toBe(SenseKey.ILLEGAL_REQUEST);
+    expect(response.readUInt8(IUSB_HEADER_SIZE + 23)).toBe(0x21);
+    expect(response.readUInt32LE(IUSB_HEADER_SIZE + 25)).toBe(0);
+  });
+
+  it('makes the first 28 header bytes sum to zero', () => {
+    const response = buildScsiResponse(parseIusbPacket(buildRequest(0x00))!, {
+      status: ScsiStatus.GOOD,
+      data: Buffer.alloc(0),
+      sense: null,
+    });
+
+    let sum = 0;
+    for (let i = 0; i < 28; i++) sum += response[i];
+    expect(sum & 0xff).toBe(0);
   });
 });

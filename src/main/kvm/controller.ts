@@ -1,5 +1,11 @@
 import type { BrowserWindow } from 'electron';
-import type { KeyEventPayload, MouseMode, PowerCommand } from '@shared/types';
+import type {
+  KeyEventPayload,
+  MouseMode,
+  PowerCommand,
+  VirtualMediaKind,
+  VirtualMediaServices,
+} from '@shared/types';
 import { DEFAULT_ADVANCED, type AdvancedSettings } from '@shared/settings';
 import { IpcChannel, type ConnectRequest, type KvmEvent } from '@shared/ipc';
 import { msg } from '@shared/i18n';
@@ -11,6 +17,9 @@ import { Pkt, buildControl } from './ivtp';
 function isUsablePort(port: number | undefined): boolean {
   return port !== undefined && port > 0 && port < 65536;
 }
+
+/** The factory port of hd-media; there is no setting for it. */
+const DEFAULT_HD_PORT = 5123;
 
 /**
  * Ties the web login, the KVM session and the application window together.
@@ -40,35 +49,52 @@ export class KvmController {
   /**
    * Parameters for a separate Virtual Media connection.
    *
-   * The CD-ROM port comes from the service configuration packet: in the JNLP
-   * the BMC substitutes 0x7FFFFFFE when the slot is taken by another client,
-   * and that value is unusable.
+   * The ports come from the service configuration packet: in the JNLP the BMC
+   * substitutes 0x7FFFFFFE for a service whose slot is taken by another
+   * client, and that value is unusable.
+   *
+   * CONF_SERVICE_STATUS records come in a fixed order (web, kvm, cd-media,
+   * fd-media, hd-media), and a service that is not configured has an empty
+   * name and a port of 0xFFFFFFFE — hence the lookup by position rather than
+   * by name.
    */
-  get connectionInfo(): { host: string; cdPort: number; token: string } | null {
+  get connectionInfo(): {
+    host: string;
+    token: string;
+    ports: Record<VirtualMediaKind, number>;
+  } | null {
     if (!this.credentials) return null;
 
-    // The third record is cd-media; the service order in the packet is fixed.
-    const fromServices = this.services[2];
-    const jnlpPort = this.credentials.cdPort;
-    const cdPort = isUsablePort(fromServices?.port)
-      ? fromServices!.port
-      : isUsablePort(jnlpPort)
-        ? jnlpPort
-        : this.settings.cdPort;
+    const port = (fromServices: number | undefined, fromJnlp: number, fallback: number) =>
+      isUsablePort(fromServices)
+        ? fromServices!
+        : isUsablePort(fromJnlp)
+          ? fromJnlp
+          : fallback;
 
-    return { host: this.credentials.host, cdPort, token: this.credentials.kvmToken };
+    return {
+      host: this.credentials.host,
+      token: this.credentials.kvmToken,
+      ports: {
+        cdrom: port(this.services[2]?.port, this.credentials.cdPort, this.settings.cdPort),
+        harddisk: port(this.services[4]?.port, this.credentials.hdPort, DEFAULT_HD_PORT),
+      },
+    };
   }
 
   /**
-   * Whether the BMC has the CD redirection service configured.
+   * Which media services the BMC offers.
    *
-   * CONF_SERVICE_STATUS records come in a fixed order (web, kvm, cd-media,
-   * fd-media, hd-media), and an inactive service has an empty name and a port
-   * of 0xFFFFFFFE — hence the lookup by position rather than by name.
+   * Not academic: firmware happily ships with a corrupted cd-media entry (an
+   * empty interface name and a port of 0xFFFFFFFE) that it then refuses to
+   * reconfigure, while hd-media on the same board works. The user has to be
+   * able to see that and pick the other one.
    */
-  get isCdMediaAvailable(): boolean {
-    const cd = this.services[2];
-    return cd !== undefined && cd.enabled;
+  get mediaServices(): VirtualMediaServices {
+    return {
+      cdrom: this.services[2]?.enabled === true,
+      harddisk: this.services[4]?.enabled === true,
+    };
   }
 
   /**
@@ -125,6 +151,7 @@ export class KvmController {
     kvm.on('activeClients', (clients) => this.emit({ type: 'activeClients', clients }));
     kvm.on('services', (services) => {
       this.services = services;
+      this.emit({ type: 'mediaServices', services: this.mediaServices });
     });
     kvm.on('error', (err) => {
       this.emit({ type: 'status', status: { kind: 'error', message: err.message } });

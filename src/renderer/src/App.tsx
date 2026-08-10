@@ -4,6 +4,8 @@ import type {
   MouseMode,
   PowerCommand,
   ServerProfile,
+  VirtualMediaKind,
+  VirtualMediaServices,
   VirtualMediaState,
 } from '@shared/types';
 import { DEFAULT_ADVANCED, resolveAdvanced, type AdvancedSettings } from '@shared/settings';
@@ -30,6 +32,11 @@ export function App() {
   /** Shown as the monitor indicator in the toolbar. */
   const [videoSignal, setVideoSignal] = useState(false);
   const [virtualMedia, setVirtualMedia] = useState<VirtualMediaState>({ mounted: false });
+  /** Assume both are there until the BMC says otherwise. */
+  const [mediaServices, setMediaServices] = useState<VirtualMediaServices>({
+    cdrom: true,
+    harddisk: true,
+  });
   const [keysVisible, setKeysVisible] = useState(false);
   /*
    * Notices are stored as a key plus parameters rather than as finished text,
@@ -78,6 +85,9 @@ export function App() {
           if (event.state.lastError) {
             setNotice({ key: event.state.lastError.key, params: event.state.lastError.params });
           }
+          break;
+        case 'mediaServices':
+          setMediaServices(event.services);
           break;
       }
     });
@@ -132,16 +142,19 @@ export function App() {
     void window.api.refreshScreen();
   }, []);
 
-  const handleMountIso = useCallback(async () => {
-    const isoPath = await window.api.chooseIso();
-    if (!isoPath) return;
-    try {
-      await window.api.mountIso(isoPath);
-      setNotice({ key: 'notice.isoMounted' });
-    } catch (err) {
-      setNotice({ key: 'notice.isoMountFailed', params: { error: te(err) } });
-    }
-  }, [te]);
+  const handleMountIso = useCallback(
+    async (kind: VirtualMediaKind) => {
+      const isoPath = await window.api.chooseIso();
+      if (!isoPath) return;
+      try {
+        await window.api.mountIso(isoPath, kind);
+        setNotice({ key: 'notice.isoMounted' });
+      } catch (err) {
+        setNotice({ key: 'notice.isoMountFailed', params: { error: te(err) } });
+      }
+    },
+    [te],
+  );
 
   const handleUnmountIso = useCallback(async () => {
     await window.api.unmountIso();
@@ -184,8 +197,9 @@ export function App() {
         tab={tab}
         onTabChange={setTab}
         virtualMedia={virtualMedia}
+        mediaServices={mediaServices}
         keysVisible={keysVisible}
-        onMountIso={() => void handleMountIso()}
+        onMountIso={(kind) => void handleMountIso(kind)}
         onUnmountIso={() => void handleUnmountIso()}
         onToggleKeys={() => setKeysVisible((visible) => !visible)}
       />

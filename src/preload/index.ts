@@ -7,6 +7,7 @@ import type {
   PowerCommand,
   ScanRange,
   ServerProfile,
+  VirtualMediaKind,
 } from '@shared/types';
 import type { Locale } from '@shared/i18n';
 import {
@@ -59,8 +60,8 @@ const api: IpcApi = {
   fetchIpmiSnapshot: () => ipcRenderer.invoke(IpcChannel.IpmiSnapshot) as Promise<IpmiSnapshot>,
 
   chooseIso: () => ipcRenderer.invoke(IpcChannel.VmChooseIso) as Promise<string | null>,
-  mountIso: (isoPath: string) =>
-    ipcRenderer.invoke(IpcChannel.VmMount, isoPath) as Promise<void>,
+  mountIso: (isoPath: string, kind: VirtualMediaKind) =>
+    ipcRenderer.invoke(IpcChannel.VmMount, isoPath, kind) as Promise<void>,
   unmountIso: () => ipcRenderer.invoke(IpcChannel.VmUnmount) as Promise<void>,
 
   sendKey: (payload: KeyEventPayload) => ipcRenderer.send(IpcChannel.KvmKey, payload),

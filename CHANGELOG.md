@@ -11,6 +11,25 @@ things have to be done.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Virtual media now works.** The reply to a SCSI command was laid out wrongly:
+  the length of the data transferred belongs in payload bytes `25..28` and the
+  data itself starts at byte `29`, while the status goes over the tail of the
+  CDB at `21..24`. The BMC was therefore reading "zero bytes transferred" and
+  repeating `READ CAPACITY(10)` once a second forever. The format was recovered
+  from the native library the original client hands its buffers to
+  (`libjava{cdrom,harddisk}wrapper`) and verified against real hardware.
+- The trailing four bytes of the IUSB header, which the BMC uses for something
+  of its own, are echoed back instead of being zeroed.
+
+### Added
+
+- An image can be mounted either as a virtual CD-ROM or as a virtual USB disk;
+  the mount button became a menu. Services the BMC reports as unavailable are
+  shown disabled — some firmware ships with a broken `cd-media` entry, and a
+  hybrid ISO boots as a USB disk just as well.
+
 ## [0.2.0] — 2026-08-06
 
 ### Added

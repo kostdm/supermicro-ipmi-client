@@ -1,6 +1,6 @@
 {
   "name": "supermicro-ipmi-client",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Remote management client for Supermicro servers with AMI MegaRAC BMC firmware — a replacement for the JViewer Java applet",
   "main": "out/main/index.js",
   "license": "MIT",

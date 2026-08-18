@@ -8,8 +8,9 @@ import type {
 } from '@shared/types';
 import { DEFAULT_ADVANCED, type AdvancedSettings } from '@shared/settings';
 import { IpcChannel, type ConnectRequest, type KvmEvent } from '@shared/ipc';
-import { msg } from '@shared/i18n';
+import { AppError, msg } from '@shared/i18n';
 import { connect as bmcConnect, logout, type BmcSession } from '../bmc/auth';
+import type { IpmiController } from '../ipmi/controller';
 import { KvmSession, type ServiceInfo } from './session';
 import { KeyboardState, MouseState } from './hid';
 import { Pkt, buildControl } from './ivtp';
@@ -39,6 +40,10 @@ export class KvmController {
   private blankRetry: NodeJS.Timeout | null = null;
   /** Timings and ports of the profile being connected to. */
   private settings: AdvancedSettings = DEFAULT_ADVANCED;
+  /** The IPMI session of the same server, when one is open. */
+  private ipmi: IpmiController | null = null;
+  /** Pending chassis state re-reads after a power command. */
+  private powerPolls = new Set<NodeJS.Timeout>();
 
   constructor(private readonly window: BrowserWindow) {}
 
@@ -127,6 +132,7 @@ export class KvmController {
     const kvm = new KvmSession(credentials, {
       insecureTls: this.settings.insecureTls,
       bandwidthBytesPerSecond: this.settings.bandwidthBytesPerSecond,
+      handshakeTimeoutMs: this.settings.kvmHandshakeTimeoutMs,
     });
     this.session = kvm;
     this.keyboard = new KeyboardState();
@@ -159,6 +165,9 @@ export class KvmController {
     kvm.on('closed', (reason) => {
       this.emit({ type: 'status', status: { kind: 'closed', reason } });
       void this.cleanup();
+      // The KVM channel was where the power state came from. It is gone, and
+      // the toolbar has just blanked the badge — IPMI can still fill it in.
+      void this.refreshPowerState();
     });
 
     kvm.connect();
@@ -170,8 +179,71 @@ export class KvmController {
     this.emit({ type: 'status', status: { kind: 'idle' } });
   }
 
-  sendPower(command: PowerCommand): void {
-    this.session?.sendPowerCommand(command);
+  /**
+   * The IPMI session to run power control over. Set once it is open, cleared
+   * when it closes.
+   */
+  useIpmi(ipmi: IpmiController | null): void {
+    this.ipmi = ipmi;
+    if (ipmi) return;
+    for (const timer of this.powerPolls) clearTimeout(timer);
+    this.powerPolls.clear();
+  }
+
+  /**
+   * Power control.
+   *
+   * IPMI over LAN first, and the KVM channel only as a fallback. The two
+   * transports are independent, and the KVM one is precisely the one that
+   * fails when the BMC video engine wedges: the connection on port 7578 is
+   * accepted, nothing ever answers on it, and a POWER_CONTROL_REQUEST written
+   * there vanishes without a word. Someone whose console has just died is the
+   * likeliest person to reach for the power menu.
+   */
+  async sendPower(command: PowerCommand): Promise<void> {
+    if (this.ipmi) {
+      try {
+        await this.ipmi.power(command);
+        this.emit({ type: 'powerResponse', ok: true, code: 0 });
+        this.trackPowerState();
+        return;
+      } catch (err) {
+        // IPMI over LAN can be switched off on the BMC — try the other route
+        // before giving up, and report the IPMI error when there is none.
+        if (!this.session?.isAuthenticated) throw err;
+      }
+    }
+
+    if (!this.session?.isAuthenticated) throw new AppError('error.noPowerChannel');
+    this.session.sendPowerCommand(command);
+  }
+
+  /**
+   * Re-reads the chassis state after a power command.
+   *
+   * The KVM channel announces POWER_STATUS by itself; over IPMI nobody
+   * volunteers it, and the state needs a few seconds to settle — a start takes
+   * a moment, an orderly shutdown considerably longer.
+   */
+  private trackPowerState(): void {
+    for (const delay of [2000, 8000, 20_000]) {
+      const timer = setTimeout(() => {
+        this.powerPolls.delete(timer);
+        void this.refreshPowerState();
+      }, delay);
+      this.powerPolls.add(timer);
+    }
+  }
+
+  /** Reports the chassis state read over IPMI. Failures stay silent. */
+  async refreshPowerState(): Promise<void> {
+    if (!this.ipmi) return;
+    try {
+      this.emit({ type: 'powerStatus', on: await this.ipmi.powerState() });
+    } catch {
+      // The sensor panel reports IPMI trouble of its own; the power badge
+      // simply keeps its previous value.
+    }
   }
 
   refreshScreen(): void {

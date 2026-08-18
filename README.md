@@ -19,7 +19,9 @@ dependencies at all.
   in the window manager). Modifiers latch, so combinations work with one hand
   on the mouse.
 - **Power control** — power on, graceful and immediate shutdown, power cycle,
-  hard reset.
+  hard reset. It runs over IPMI over LAN rather than over the console, so it
+  keeps working when the KVM session does not — which is the state a server
+  usually has to be restarted from.
 - **IPMI over LAN** (port 623) — temperature, voltage and fan sensors, chassis
   state, the system event log.
 - **Virtual media** — mounting a disk image over the IUSB protocol, either as a
@@ -41,7 +43,7 @@ dependencies at all.
 - A Supermicro server with an AMI MegaRAC BMC (developed against X9/X10-era
   boards that ship JViewer).
 - Network access to the BMC web interface (TCP 80/443), the KVM port
-  (TCP 7578) and, for sensors, IPMI over LAN (UDP 623).
+  (TCP 7578) and, for sensors and power control, IPMI over LAN (UDP 623).
 - Node.js 20 or newer to build from source.
 
 ## Running from source

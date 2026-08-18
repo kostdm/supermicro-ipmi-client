@@ -3,6 +3,7 @@ import tls from 'node:tls';
 import { EventEmitter } from 'node:events';
 import type { KvmCredentials, MouseMode, PowerCommand } from '@shared/types';
 import { AppError, msg, type Message } from '@shared/i18n';
+import { DEFAULT_ADVANCED } from '@shared/settings';
 import {
   Bandwidth,
   IVTP_HEADER_SIZE,
@@ -46,6 +47,15 @@ export interface KvmSessionOptions {
   insecureTls?: boolean;
   /** SET_BANDWIDTH value sent once the session is authenticated. */
   bandwidthBytesPerSecond?: number;
+  /**
+   * How long the whole setup — TCP connect plus handshake — may take.
+   *
+   * There has to be a limit. A BMC whose video engine has wedged accepts the
+   * connection on port 7578 and then sends nothing: no SESSION_ACCEPTED, no
+   * refusal, no close. Without a timer the session hangs in that state
+   * forever, and the interface has nothing to say about why.
+   */
+  handshakeTimeoutMs?: number;
 }
 
 /** BMC service details from the CONF_SERVICE_STATUS packet. */
@@ -99,6 +109,13 @@ export class KvmSession extends EventEmitter<KvmSessionEvents> {
   private authenticated = false;
   private closing = false;
 
+  /** Runs from connect() until the BMC confirms the video token. */
+  private handshakeTimer: NodeJS.Timeout | null = null;
+  /** Whether the TCP connection came up — it tells the two failures apart. */
+  private tcpConnected = false;
+  /** Bytes received so far, to distinguish silence from a stalled handshake. */
+  private bytesReceived = 0;
+
   /** The socket's local IP — it goes into the validation packet. */
   private clientIp = '';
 
@@ -123,12 +140,22 @@ export class KvmSession extends EventEmitter<KvmSessionEvents> {
     const { host, kvmPort, kvmSecure } = this.credentials;
 
     const onConnect = () => {
+      this.tcpConnected = true;
       const local = this.socket?.localAddress ?? '';
       // Node reports an IPv4-mapped address like ::ffff:10.0.0.5 — the BMC
       // expects plain IPv4.
       this.clientIp = local.replace(/^::ffff:/, '');
       this.emit('connected');
     };
+
+    // Started before the connection, so that a BMC which never completes the
+    // TCP handshake is caught by the same timer.
+    const handshakeTimeoutMs =
+      this.options.handshakeTimeoutMs ?? DEFAULT_ADVANCED.kvmHandshakeTimeoutMs;
+    this.handshakeTimer = setTimeout(
+      () => this.onHandshakeTimeout(handshakeTimeoutMs),
+      handshakeTimeoutMs,
+    );
 
     this.socket = kvmSecure
       ? tls.connect(
@@ -152,6 +179,7 @@ export class KvmSession extends EventEmitter<KvmSessionEvents> {
   close(reason: Message = msg('kvm.sessionClosed')): void {
     if (this.closing) return;
     this.closing = true;
+    this.stopHandshakeTimer();
     if (this.socket && !this.socket.destroyed) {
       try {
         this.socket.write(buildControl(Pkt.STOP_SESSION_IMMEDIATE));
@@ -207,7 +235,32 @@ export class KvmSession extends EventEmitter<KvmSessionEvents> {
     this.send(buildControl(Pkt.RESUME_REDIRECTION));
   }
 
+  /**
+   * The setup ran out of time. Which of the three messages fits says where it
+   * stopped, and that is the whole diagnostic value of this path.
+   */
+  private onHandshakeTimeout(timeoutMs: number): void {
+    if (this.authenticated || this.closing) return;
+
+    const seconds = Math.round(timeoutMs / 1000);
+    const port = this.credentials.kvmPort;
+    const reason = !this.tcpConnected
+      ? msg('kvm.connectTimeout', { port, seconds })
+      : this.bytesReceived === 0
+        ? msg('kvm.noGreeting', { port, seconds })
+        : msg('kvm.handshakeTimeout', { seconds });
+
+    this.close(reason);
+  }
+
+  private stopHandshakeTimer(): void {
+    if (!this.handshakeTimer) return;
+    clearTimeout(this.handshakeTimer);
+    this.handshakeTimer = null;
+  }
+
   private onData(chunk: Buffer): void {
+    this.bytesReceived += chunk.length;
     this.rx = this.rx.length === 0 ? chunk : Buffer.concat([this.rx, chunk]);
 
     while (this.rx.length >= IVTP_HEADER_SIZE) {
@@ -238,6 +291,7 @@ export class KvmSession extends EventEmitter<KvmSessionEvents> {
       case Pkt.VALIDATE_VIDEO_SESSION_RESPONSE:
         if (body.length > 0 && body[0] !== 0) {
           this.authenticated = true;
+          this.stopHandshakeTimer();
           this.emit('authenticated');
           // The original client immediately asks for power and sets bandwidth.
           this.requestPowerStatus();

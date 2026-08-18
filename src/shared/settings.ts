@@ -23,6 +23,15 @@ export interface AdvancedSettings {
    */
   insecureTls: boolean;
 
+  /**
+   * How long the KVM session may take to authenticate, in milliseconds.
+   *
+   * Counted from the moment the connection is started until the BMC confirms
+   * the video token. Without it a wedged video engine — which accepts the
+   * connection on port 7578 and then says nothing at all — leaves the client
+   * waiting for as long as the window stays open.
+   */
+  kvmHandshakeTimeoutMs: number;
   /** SET_BANDWIDTH value for the KVM stream, in bytes per second. */
   bandwidthBytesPerSecond: number;
   /** How often mouse movement is sent to the server, in milliseconds. */
@@ -53,6 +62,7 @@ export const DEFAULT_ADVANCED: AdvancedSettings = {
   httpTimeoutMs: 15_000,
   insecureTls: true,
 
+  kvmHandshakeTimeoutMs: 15_000,
   bandwidthBytesPerSecond: 0xc80000,
   mouseThrottleMs: 60,
   blankRetryMs: 1000,
@@ -93,6 +103,7 @@ export type AdvancedFieldSpec =
 export const ADVANCED_FIELDS: readonly AdvancedFieldSpec[] = [
   { key: 'httpTimeoutMs', kind: 'number', min: 1000, max: 120_000 },
   { key: 'insecureTls', kind: 'boolean' },
+  { key: 'kvmHandshakeTimeoutMs', kind: 'number', min: 2000, max: 120_000 },
   {
     key: 'bandwidthBytesPerSecond',
     kind: 'choice',

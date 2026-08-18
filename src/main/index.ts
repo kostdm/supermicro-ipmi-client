@@ -162,10 +162,17 @@ function registerIpc(): void {
       request.password,
       request.advanced,
     );
+    // Power control runs over IPMI, so the KVM controller needs this session.
+    controller?.useIpmi(ipmi);
+    // The chassis state is worth having even when the KVM session never comes
+    // up: the power badge is then the one thing on screen that still means
+    // something.
+    void controller?.refreshPowerState();
   });
   ipcMain.handle(IpcChannel.KvmDisconnect, async () => {
     virtualMedia?.unmount();
     virtualMedia = null;
+    controller?.useIpmi(null);
     ipmi?.close();
     ipmi = null;
     await controller?.disconnect();
@@ -209,9 +216,10 @@ function registerIpc(): void {
     virtualMedia?.unmount();
     virtualMedia = null;
   });
-  ipcMain.handle(IpcChannel.KvmPower, (_event, command: PowerCommand) =>
-    controller?.sendPower(command),
-  );
+  ipcMain.handle(IpcChannel.KvmPower, async (_event, command: PowerCommand) => {
+    if (!controller) throw new AppError('error.noConnection');
+    await controller.sendPower(command);
+  });
   ipcMain.handle(IpcChannel.KvmRefresh, () => controller?.refreshScreen());
   ipcMain.handle(IpcChannel.KvmSetMouseMode, (_event, mode: MouseMode) =>
     controller?.setMouseMode(mode),

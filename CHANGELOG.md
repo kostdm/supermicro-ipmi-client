@@ -11,6 +11,31 @@ things have to be done.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-08-18
+
+### Fixed
+
+- **Power control no longer depends on the KVM console.** It used to travel on
+  the KVM channel alone, as `POWER_CONTROL_REQUEST`, so it stopped working
+  exactly when it was needed most: a BMC whose video engine has wedged accepts
+  the connection on port 7578 and then answers nothing, and the command went
+  into that socket without a trace and without a word on screen. Power now goes
+  over IPMI over LAN — a separate transport — and falls back to the KVM channel
+  only when IPMI is unavailable. When neither is there, the interface says so
+  instead of staying silent. The chassis state is read over IPMI too, so the
+  power indicator is right even when the console never comes up.
+- **A KVM session that cannot be established now ends with an explanation.**
+  There was no timeout of any kind on the connection or the handshake: against
+  a silent BMC the client sat in "authenticating" for as long as the window
+  stayed open. The wait is now bounded, and the message distinguishes a
+  connection that was never accepted, a BMC that accepted it and sent nothing —
+  where restarting the BMC is the way out — and a handshake that started and
+  stalled.
+
+### Added
+
+- A per-server "KVM session setup timeout" setting, 15 seconds by default.
+
 ## [0.3.0] — 2026-08-10
 
 ### Fixed
@@ -73,7 +98,8 @@ First public release.
 - Distributables for macOS (dmg, zip), Windows (NSIS, portable) and Linux
   (AppImage, deb, tar.gz).
 
-[Unreleased]: https://github.com/kostdm/supermicro-ipmi-client/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/kostdm/supermicro-ipmi-client/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/kostdm/supermicro-ipmi-client/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/kostdm/supermicro-ipmi-client/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kostdm/supermicro-ipmi-client/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/kostdm/supermicro-ipmi-client/releases/tag/v0.1.0

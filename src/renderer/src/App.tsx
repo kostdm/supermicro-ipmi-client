@@ -129,9 +129,18 @@ export function App() {
     setTab('console');
   }, []);
 
-  const handlePower = useCallback((command: PowerCommand) => {
-    void window.api.sendPower(command);
-  }, []);
+  const handlePower = useCallback(
+    async (command: PowerCommand) => {
+      // A power command that goes nowhere used to fail in silence: it was sent
+      // into the KVM channel, and a channel that is not up swallowed it.
+      try {
+        await window.api.sendPower(command);
+      } catch (err) {
+        setNotice({ key: 'notice.powerFailed', params: { error: te(err) } });
+      }
+    },
+    [te],
+  );
 
   const handleMouseMode = useCallback((mode: MouseMode) => {
     setMouseMode(mode);
@@ -192,7 +201,7 @@ export function App() {
         onDisconnect={() => void handleDisconnect()}
         onRefresh={() => void window.api.refreshScreen()}
         onCtrlAltDel={() => void window.api.sendCtrlAltDel()}
-        onPower={handlePower}
+        onPower={(command) => void handlePower(command)}
         onMouseMode={handleMouseMode}
         tab={tab}
         onTabChange={setTab}

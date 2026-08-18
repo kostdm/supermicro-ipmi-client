@@ -59,6 +59,7 @@ const EN: Record<string, string> = {
     'Timings and ports for this server. They describe the far end, so they are stored per profile; leave them alone unless the link or the firmware asks for something else.',
   'advanced.httpTimeoutMs': 'Web interface timeout, ms',
   'advanced.insecureTls': 'Accept a self-signed certificate',
+  'advanced.kvmHandshakeTimeoutMs': 'KVM session setup timeout, ms',
   'advanced.bandwidthBytesPerSecond': 'KVM bandwidth',
   'advanced.bandwidth.100': '100 Mbit/s',
   'advanced.bandwidth.10': '10 Mbit/s',
@@ -151,6 +152,7 @@ const EN: Record<string, string> = {
 
   'notice.powerOk': 'Power command executed',
   'notice.powerRejected': 'The BMC rejected the power command (code {code})',
+  'notice.powerFailed': 'Could not send the power command: {error}',
   'notice.mediaEjected': 'The server ejected the virtual disk',
   'notice.isoMounted': 'Image mounted. Reboot the server for the system to see it.',
   'notice.isoMountFailed': 'Could not mount the image: {error}',
@@ -244,6 +246,8 @@ const EN: Record<string, string> = {
 
   'error.noConnection': 'No active connection to a BMC',
   'error.noKvmSession': 'The KVM session is not established',
+  'error.noPowerChannel':
+    'Nowhere to send the power command: IPMI over LAN is unavailable and the KVM session is not established',
   'error.cdServiceUnavailable':
     'The BMC reports the CD redirection service as unavailable: every slot is ' +
     'taken or the service is disabled. Fully power-cycling the server frees the slot. ' +
@@ -276,6 +280,15 @@ const EN: Record<string, string> = {
   'kvm.webLogout': 'Session closed: logged out of the web interface',
   'kvm.closedWithCode': 'Session closed by the BMC (code {status})',
   'kvm.disconnectedByUser': 'Disconnected by the user',
+  'kvm.connectTimeout':
+    'The BMC did not accept a connection on KVM port {port} within {seconds} s',
+  'kvm.noGreeting':
+    'The BMC accepted the connection on port {port} but sent nothing within {seconds} s. ' +
+    'Its video service is wedged: the web interface, IPMI and virtual media keep working, ' +
+    'while the KVM console does not. Restarting the BMC brings it back — ' +
+    'Maintenance → Unit Reset in the web interface, or `ipmitool mc reset cold`. ' +
+    'The server itself keeps running.',
+  'kvm.handshakeTimeout': 'The BMC did not finish the KVM handshake within {seconds} s',
 
   'vm.disconnected': 'Virtual Media: the connection was lost',
   'vm.detached': 'Virtual Media detached',
@@ -302,6 +315,7 @@ const RU: Record<string, string> = {
     'Тайминги и порты этого сервера. Они описывают удалённую сторону, поэтому хранятся в профиле; меняйте их, только если этого требует канал или прошивка.',
   'advanced.httpTimeoutMs': 'Таймаут веб-интерфейса, мс',
   'advanced.insecureTls': 'Принимать самоподписанный сертификат',
+  'advanced.kvmHandshakeTimeoutMs': 'Таймаут установки KVM-сессии, мс',
   'advanced.bandwidthBytesPerSecond': 'Пропускная способность KVM',
   'advanced.bandwidth.100': '100 Мбит/с',
   'advanced.bandwidth.10': '10 Мбит/с',
@@ -394,6 +408,7 @@ const RU: Record<string, string> = {
 
   'notice.powerOk': 'Команда питания выполнена',
   'notice.powerRejected': 'BMC отклонил команду питания (код {code})',
+  'notice.powerFailed': 'Не удалось отправить команду питания: {error}',
   'notice.mediaEjected': 'Сервер извлёк виртуальный диск',
   'notice.isoMounted': 'Образ подключён. Чтобы система его увидела, перезагрузите сервер.',
   'notice.isoMountFailed': 'Не удалось подключить образ: {error}',
@@ -487,6 +502,8 @@ const RU: Record<string, string> = {
 
   'error.noConnection': 'Нет активного подключения к BMC',
   'error.noKvmSession': 'KVM-сессия не установлена',
+  'error.noPowerChannel':
+    'Команду питания некуда отправить: IPMI over LAN недоступен, KVM-сессия не установлена',
   'error.cdServiceUnavailable':
     'BMC сообщает, что служба CD-редиректа недоступна: все слоты заняты ' +
     'или служба выключена. Освободить слот помогает полное обесточивание сервера. ' +
@@ -519,6 +536,13 @@ const RU: Record<string, string> = {
   'kvm.webLogout': 'Сессия закрыта: выход из веб-интерфейса',
   'kvm.closedWithCode': 'Сессия закрыта BMC (код {status})',
   'kvm.disconnectedByUser': 'Отключено пользователем',
+  'kvm.connectTimeout': 'BMC не принял соединение на KVM-порту {port} за {seconds} с',
+  'kvm.noGreeting':
+    'BMC принял соединение на порту {port}, но за {seconds} с не прислал ничего. ' +
+    'Служба видео зависла: веб-интерфейс, IPMI и виртуальные носители при этом работают, ' +
+    'а KVM-консоль — нет. Помогает перезапуск BMC: Maintenance → Unit Reset ' +
+    'в веб-интерфейсе или `ipmitool mc reset cold`. Сам сервер при этом продолжает работать.',
+  'kvm.handshakeTimeout': 'BMC не завершил установку KVM-сессии за {seconds} с',
 
   'vm.disconnected': 'Virtual Media: соединение разорвано',
   'vm.detached': 'Virtual Media отключена',

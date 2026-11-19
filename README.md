@@ -1,5 +1,50 @@
 # Supermicro IPMI Client
 
+## 💸 Support development
+
+If this client is useful to you, you can support its development with a crypto donation. Donations are optional and do not unlock features.
+
+<details>
+<summary>Donation addresses and QR codes</summary>
+
+**Check the asset and network before sending.** Each QR code contains only the receiving address; it does not select a network, token, or amount in your wallet.
+
+### Bitcoin (BTC) — Bitcoin mainnet
+
+<img src="https://raw.githubusercontent.com/kostdm/qwen-coder-connector/main/.github/qr-codes/btc.png" alt="QR code for the Bitcoin donation address" width="200" height="200">
+
+```text
+bc1qfnrnx0kkj8x8v95fhm9cuwg5yykteflgauy8kq
+```
+
+### Ethereum (ETH) — Ethereum mainnet
+
+<img src="https://raw.githubusercontent.com/kostdm/qwen-coder-connector/main/.github/qr-codes/eth.png" alt="QR code for the Ethereum donation address" width="200" height="200">
+
+```text
+0x700685c497c85802B40f0aF083153834bC2e2E8B
+```
+
+### USD Coin (USDC) — Ethereum mainnet (ERC-20)
+
+Use **USDC on Ethereum**, not USDC on Base, Arbitrum, Polygon, or another network. The receiving address is the same as for ETH above.
+
+<img src="https://raw.githubusercontent.com/kostdm/qwen-coder-connector/main/.github/qr-codes/usdc.png" alt="QR code for the USDC donation address on Ethereum" width="200" height="200">
+
+```text
+0x700685c497c85802B40f0aF083153834bC2e2E8B
+```
+
+### Toncoin (TON) — TON mainnet
+
+<img src="https://raw.githubusercontent.com/kostdm/qwen-coder-connector/main/.github/qr-codes/ton.png" alt="QR code for the Toncoin donation address" width="200" height="200">
+
+```text
+UQCOHpvKe6N04kkNf6af0gnEIjr0kdFUcPT1b-wx0imiQtYA
+```
+
+</details>
+
 A remote management client for Supermicro servers whose BMC runs AMI MegaRAC
 firmware — a replacement for the JViewer Java applet, which needs the
 long-deprecated Java Web Start.
